@@ -298,6 +298,26 @@
             color: var(--text-secondary);
         }
 
+        /* Error message styling */
+        .error-message {
+            background: var(--danger-color);
+            color: white;
+            padding: var(--spacing-md);
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--spacing-md);
+            text-align: center;
+        }
+
+        /* Success message styling */
+        .success-message {
+            background: var(--accent-color);
+            color: white;
+            padding: var(--spacing-md);
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--spacing-md);
+            text-align: center;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 375px) {
             .container {
@@ -344,6 +364,9 @@
 
     <!-- Main Container -->
     <div class="container">
+        <!-- Error/Success Messages -->
+        <div id="messageContainer"></div>
+
         <!-- Statistics -->
         <div class="stats-container">
             <div class="stat-card">
@@ -439,36 +462,40 @@
         
         // Configuration object - CUSTOMIZE THESE SETTINGS
         const CONFIG = {
-            // Google Apps Script Web App URL (you'll add this after deployment)
+            // ⚠️ IMPORTANT: Replace with your actual Google Apps Script URL
+            // Get this from: Google Apps Script → Deploy → New deployment → Web app URL
             GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby3fO9Q0Pl1np0UO46xrQ2LPt3ryB_AvN8sv_fhP0yhW48xYV1Pvvx19enykH5c8VmuYw/exec',
             
-            // Local storage keys
+            // Keys used to store data in browser's localStorage
+            // localStorage is like a permanent notepad that survives browser restarts
             STORAGE_KEYS: {
-                PURCHASES: 'purchaseTracker_purchases',
-                PENDING_SYNC: 'purchaseTracker_pendingSync',
-                LAST_SYNC: 'purchaseTracker_lastSync',
-                SETTINGS: 'purchaseTracker_settings'
+                PURCHASES: 'purchaseTracker_purchases',           // All purchase data
+                PENDING_SYNC: 'purchaseTracker_pendingSync',     // Purchases waiting to sync to Google Sheets
+                LAST_SYNC: 'purchaseTracker_lastSync',           // When we last successfully synced
+                SETTINGS: 'purchaseTracker_settings'             // User preferences (future use)
             },
             
-            // Number of recent purchases to display
+            // How many recent purchases to show in the list (prevents UI from getting too long)
             RECENT_PURCHASES_LIMIT: 10,
             
-            // Auto-sync interval (in milliseconds) - 5 minutes
+            // How often to automatically try syncing (5 minutes = 5 * 60 * 1000 milliseconds)
             AUTO_SYNC_INTERVAL: 5 * 60 * 1000,
             
-            // Date format options
+            // How to format dates when displaying them
             DATE_FORMAT: {
-                dateStyle: 'short',
-                timeStyle: 'short'
+                dateStyle: 'short',  // Shows dates like "1/15/24"
+                timeStyle: 'short'   // Shows times like "2:30 PM"
             }
         };
 
         // ============================================
         // UTILITY FUNCTIONS
+        // These are helper functions used throughout the app
         // ============================================
         
         /**
-         * Format currency values consistently
+         * Format currency values consistently throughout the app
+         * Takes a number like 12.5 and returns a string like "$12.50"
          * @param {number} amount - The amount to format
          * @returns {string} Formatted currency string
          */
@@ -480,19 +507,21 @@
         }
 
         /**
-         * Format date for display
-         * @param {string} dateString - ISO date string
-         * @returns {string} Formatted date
+         * Format date for display in the UI
+         * Takes an ISO date string and returns a human-readable format
+         * @param {string} dateString - ISO date string like "2024-01-15T14:30:00.000Z"
+         * @returns {string} Formatted date like "1/15/24, 2:30 PM"
          */
         function formatDate(dateString) {
             return new Date(dateString).toLocaleString('en-US', CONFIG.DATE_FORMAT);
         }
 
         /**
-         * Check if dates are on the same day
-         * @param {Date} date1 - First date
-         * @param {Date} date2 - Second date
-         * @returns {boolean} True if same day
+         * Check if two dates are on the same calendar day
+         * Useful for calculating "today's" spending
+         * @param {Date} date1 - First date to compare
+         * @param {Date} date2 - Second date to compare
+         * @returns {boolean} True if both dates are on the same day
          */
         function isSameDay(date1, date2) {
             return date1.getFullYear() === date2.getFullYear() &&
@@ -501,26 +530,53 @@
         }
 
         /**
-         * Check if dates are in the same month
-         * @param {Date} date1 - First date
-         * @param {Date} date2 - Second date
-         * @returns {boolean} True if same month
+         * Check if two dates are in the same month
+         * Useful for calculating "this month's" spending
+         * @param {Date} date1 - First date to compare
+         * @param {Date} date2 - Second date to compare
+         * @returns {boolean} True if both dates are in the same month
          */
         function isSameMonth(date1, date2) {
             return date1.getFullYear() === date2.getFullYear() &&
                    date1.getMonth() === date2.getMonth();
         }
 
+        /**
+         * Show a temporary message to the user
+         * @param {string} message - The message to display
+         * @param {string} type - 'success' or 'error' for styling
+         */
+        function showMessage(message, type = 'success') {
+            const messageContainer = document.getElementById('messageContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `${type}-message`;
+            messageDiv.textContent = message;
+            
+            // Clear any existing messages
+            messageContainer.innerHTML = '';
+            messageContainer.appendChild(messageDiv);
+            
+            // Remove message after 5 seconds
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 5000);
+        }
+
         // ============================================
         // LOCAL STORAGE MANAGEMENT
+        // This handles saving and loading data from the browser's storage
         // ============================================
         
         /**
          * Storage manager for handling all local storage operations
+         * localStorage is like a filing cabinet that survives browser restarts
          */
         const Storage = {
             /**
              * Get all purchases from local storage
+             * If no purchases exist, returns an empty array
              * @returns {Array} Array of purchase objects
              */
             getPurchases() {
@@ -530,25 +586,28 @@
 
             /**
              * Save purchases to local storage
-             * @param {Array} purchases - Array of purchase objects
+             * This overwrites the entire purchases list
+             * @param {Array} purchases - Array of purchase objects to save
              */
             savePurchases(purchases) {
                 localStorage.setItem(CONFIG.STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
             },
 
             /**
-             * Add a single purchase
-             * @param {Object} purchase - Purchase object
+             * Add a single purchase to the beginning of the list
+             * Newer purchases appear first in the UI
+             * @param {Object} purchase - Purchase object to add
              */
             addPurchase(purchase) {
                 const purchases = this.getPurchases();
-                purchases.unshift(purchase); // Add to beginning
+                purchases.unshift(purchase); // Add to beginning of array
                 this.savePurchases(purchases);
                 return purchase;
             },
 
             /**
-             * Get purchases that need to be synced
+             * Get purchases that haven't been synced to Google Sheets yet
+             * These are purchases made while offline or when sync failed
              * @returns {Array} Array of unsynced purchases
              */
             getPendingSync() {
@@ -557,30 +616,30 @@
             },
 
             /**
-             * Save pending sync purchases
-             * @param {Array} purchases - Array of purchases to sync
+             * Save purchases that need to be synced
+             * @param {Array} purchases - Array of purchases waiting to sync
              */
             savePendingSync(purchases) {
                 localStorage.setItem(CONFIG.STORAGE_KEYS.PENDING_SYNC, JSON.stringify(purchases));
             },
 
             /**
-             * Clear pending sync after successful sync
+             * Clear the pending sync list after successful sync
              */
             clearPendingSync() {
                 localStorage.setItem(CONFIG.STORAGE_KEYS.PENDING_SYNC, '[]');
             },
 
             /**
-             * Update last sync timestamp
+             * Record when we last successfully synced to Google Sheets
              */
             updateLastSync() {
                 localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
             },
 
             /**
-             * Get last sync timestamp
-             * @returns {string|null} ISO date string or null
+             * Get the timestamp of the last successful sync
+             * @returns {string|null} ISO date string or null if never synced
              */
             getLastSync() {
                 return localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_SYNC);
@@ -589,10 +648,12 @@
 
         // ============================================
         // UI UPDATE FUNCTIONS
+        // These functions update what the user sees on screen
         // ============================================
         
         /**
-         * Update the statistics display
+         * Update the statistics display (Today and This Month totals)
+         * Calculates totals by looping through all purchases and filtering by date
          */
         function updateStats() {
             const purchases = Storage.getPurchases();
@@ -601,31 +662,36 @@
             let todayTotal = 0;
             let monthTotal = 0;
             
+            // Loop through each purchase and add to appropriate total
             purchases.forEach(purchase => {
                 const purchaseDate = new Date(purchase.timestamp);
                 const amount = parseFloat(purchase.amount);
                 
+                // Add to today's total if purchase was made today
                 if (isSameDay(purchaseDate, today)) {
                     todayTotal += amount;
                 }
                 
+                // Add to month's total if purchase was made this month
                 if (isSameMonth(purchaseDate, today)) {
                     monthTotal += amount;
                 }
             });
             
-            // Update DOM
+            // Update the numbers displayed on screen
             document.getElementById('todayTotal').textContent = formatCurrency(todayTotal);
             document.getElementById('monthTotal').textContent = formatCurrency(monthTotal);
         }
 
         /**
-         * Update the recent purchases list
+         * Update the recent purchases list display
+         * Shows the most recent purchases in a scrollable list
          */
         function updatePurchasesList() {
             const purchases = Storage.getPurchases();
             const listContainer = document.getElementById('purchasesList');
             
+            // If no purchases exist, show a helpful message
             if (purchases.length === 0) {
                 listContainer.innerHTML = `
                     <div class="empty-state">
@@ -635,9 +701,10 @@
                 return;
             }
             
-            // Show only recent purchases based on limit
+            // Show only the most recent purchases to keep the UI manageable
             const recentPurchases = purchases.slice(0, CONFIG.RECENT_PURCHASES_LIMIT);
             
+            // Create HTML for each purchase and join them together
             listContainer.innerHTML = recentPurchases.map(purchase => `
                 <div class="purchase-item">
                     <div class="purchase-info">
@@ -654,16 +721,19 @@
         }
 
         /**
-         * Update sync status indicator
+         * Update the sync status indicator
+         * Shows users whether their data is synced, pending, or has errors
          * @param {string} status - 'synced', 'pending', 'syncing', 'error'
-         * @param {string} text - Text to display
+         * @param {string} text - Text to display next to the indicator
          */
         function updateSyncStatus(status, text) {
             const indicator = document.getElementById('syncIndicator');
             const syncText = document.getElementById('syncText');
             
+            // Reset indicator classes
             indicator.className = 'sync-indicator';
             
+            // Apply appropriate styling based on status
             switch(status) {
                 case 'pending':
                     indicator.classList.add('pending');
@@ -672,6 +742,7 @@
                     indicator.classList.add('error');
                     break;
                 case 'syncing':
+                    // Show a spinning animation while syncing
                     syncText.innerHTML = '<span class="loading"></span> Syncing...';
                     return;
             }
@@ -681,80 +752,91 @@
 
         // ============================================
         // FORM HANDLING
+        // This handles when users submit the purchase form
         // ============================================
         
         /**
          * Handle purchase form submission
+         * This runs when the user clicks "Add Purchase"
          */
         document.getElementById('purchaseForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+            e.preventDefault(); // Prevent the default form submission behavior
             
-            // Get form data
+            // Extract data from the form
             const formData = new FormData(e.target);
             const purchase = {
-                id: Date.now().toString(), // Simple ID generation
+                id: Date.now().toString(), // Simple unique ID using timestamp
                 description: formData.get('description'),
                 amount: parseFloat(formData.get('amount')),
                 category: formData.get('category'),
-                timestamp: new Date().toISOString(),
-                synced: false
+                timestamp: new Date().toISOString(), // Current time in ISO format
+                synced: false // Mark as not yet synced to Google Sheets
             };
             
-            // Save purchase locally
+            // Save the purchase locally first (for offline capability)
             Storage.addPurchase(purchase);
             
-            // Add to pending sync
+            // Add to the list of purchases that need to be synced
             const pending = Storage.getPendingSync();
             pending.push(purchase);
             Storage.savePendingSync(pending);
             
-            // Update UI
+            // Update the user interface immediately
             updateStats();
             updatePurchasesList();
             updateSyncStatus('pending', `${pending.length} pending`);
             
-            // Reset form
+            // Clear the form so user can quickly add another purchase
             e.target.reset();
             
-            // Focus back on description field for quick entry
+            // Put cursor back in the description field for quick entry
             document.getElementById('description').focus();
             
-            // Try to sync if online
+            // Show success message
+            showMessage('Purchase added successfully!', 'success');
+            
+            // Try to sync if we're online (with a small delay to allow for multiple quick entries)
             if (navigator.onLine) {
-                // Delay sync slightly to allow for multiple quick entries
                 setTimeout(() => syncPurchases(), 2000);
             }
         });
 
         // ============================================
         // SYNC FUNCTIONALITY
+        // This handles sending data to Google Sheets
         // ============================================
         
         /**
          * Sync purchases with Google Sheets
+         * This is the main function that sends data to your Google Apps Script
          */
         async function syncPurchases() {
-            // Check if we have the Google Script URL configured
-            if (CONFIG.GOOGLE_SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
+            // Check if we have a valid Google Script URL configured
+            if (!CONFIG.GOOGLE_SCRIPT_URL.startsWith('https://script.google.com/')) {
                 updateSyncStatus('error', 'Sync not configured');
                 console.warn('Google Apps Script URL not configured');
                 return;
             }
             
+            // Get purchases that need to be synced
             const pending = Storage.getPendingSync();
             
+            // If nothing to sync, we're done
             if (pending.length === 0) {
                 updateSyncStatus('synced', 'All synced');
                 return;
             }
             
+            // Show syncing status
             updateSyncStatus('syncing', 'Syncing...');
             
             try {
-                // Send purchases to Google Sheets
+                console.log('Syncing purchases:', pending);
+                
+                // Send purchases to Google Sheets via our Apps Script
                 const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors', // Required for Google Apps Script
+                    mode: 'no-cors', // Required for Google Apps Script (we can't read response)
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -764,8 +846,8 @@
                     })
                 });
                 
-                // With no-cors, we can't read the response, so we assume success
-                // Mark purchases as synced
+                // With no-cors mode, we can't read the response, so we assume success
+                // Mark all pending purchases as synced in our local storage
                 const allPurchases = Storage.getPurchases();
                 allPurchases.forEach(purchase => {
                     if (pending.find(p => p.id === purchase.id)) {
@@ -774,34 +856,43 @@
                 });
                 Storage.savePurchases(allPurchases);
                 
-                // Clear pending sync
+                // Clear the pending sync list and record successful sync time
                 Storage.clearPendingSync();
                 Storage.updateLastSync();
                 
+                // Update UI to show success
                 updateSyncStatus('synced', 'All synced');
+                showMessage('Purchases synced to Google Sheets!', 'success');
+                
+                console.log('Sync completed successfully');
                 
             } catch (error) {
+                // Handle sync errors
                 console.error('Sync error:', error);
                 updateSyncStatus('error', 'Sync failed');
+                showMessage('Sync failed. Will retry when online.', 'error');
             }
         }
 
         // ============================================
         // EXPORT FUNCTIONALITY
+        // This allows users to download their data as a CSV file
         // ============================================
         
         /**
-         * Export purchases as CSV
+         * Export purchases as CSV file
+         * Creates a downloadable spreadsheet file
          */
         function exportPurchases() {
             const purchases = Storage.getPurchases();
             
             if (purchases.length === 0) {
-                alert('No purchases to export');
+                showMessage('No purchases to export', 'error');
                 return;
             }
             
             // Create CSV content
+            // CSV = Comma Separated Values (a spreadsheet format)
             const headers = ['Date', 'Time', 'Description', 'Amount', 'Category'];
             const rows = purchases.map(purchase => {
                 const date = new Date(purchase.timestamp);
@@ -814,12 +905,13 @@
                 ];
             });
             
+            // Combine headers and data into CSV format
             const csvContent = [
                 headers.join(','),
                 ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
             ].join('\n');
             
-            // Create download link
+            // Create a download link and trigger it
             const blob = new Blob([csvContent], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -827,30 +919,37 @@
             a.download = `purchases_${new Date().toISOString().split('T')[0]}.csv`;
             a.click();
             URL.revokeObjectURL(url);
+            
+            showMessage('Export downloaded!', 'success');
         }
 
         // ============================================
         // EVENT LISTENERS
+        // These functions respond to user actions and system events
         // ============================================
         
-        // Sync button
+        // Sync button click
         document.getElementById('syncButton').addEventListener('click', syncPurchases);
         
-        // Export button
+        // Export button click
         document.getElementById('exportButton').addEventListener('click', exportPurchases);
         
         // Online/Offline detection
+        // These events fire when the user's internet connection changes
         window.addEventListener('online', () => {
             document.body.classList.remove('offline');
+            showMessage('Back online! Syncing purchases...', 'success');
             syncPurchases(); // Auto-sync when coming back online
         });
         
         window.addEventListener('offline', () => {
             document.body.classList.add('offline');
+            showMessage('You\'re offline. Purchases will sync when reconnected.', 'error');
         });
         
         // ============================================
         // SERVICE WORKER REGISTRATION
+        // This enables the app to work offline (Progressive Web App feature)
         // ============================================
         
         if ('serviceWorker' in navigator) {
@@ -863,22 +962,26 @@
         
         // ============================================
         // INITIALIZATION
+        // This runs when the page first loads
         // ============================================
         
         /**
-         * Initialize the app on load
+         * Initialize the app on page load
+         * Sets up the initial state and starts background processes
          */
         function init() {
-            // Update UI with current data
+            console.log('Initializing Purchase Tracker...');
+            
+            // Load and display existing data
             updateStats();
             updatePurchasesList();
             
-            // Check online status
+            // Check if we're online or offline
             if (!navigator.onLine) {
                 document.body.classList.add('offline');
             }
             
-            // Check for pending sync
+            // Check if we have purchases waiting to sync
             const pending = Storage.getPendingSync();
             if (pending.length > 0) {
                 updateSyncStatus('pending', `${pending.length} pending`);
@@ -886,18 +989,20 @@
                 updateSyncStatus('synced', 'All synced');
             }
             
-            // Set up auto-sync
+            // Set up automatic syncing every 5 minutes (when online)
             setInterval(() => {
                 if (navigator.onLine) {
                     syncPurchases();
                 }
             }, CONFIG.AUTO_SYNC_INTERVAL);
             
-            // Focus on description field
+            // Focus on description field so user can start typing immediately
             document.getElementById('description').focus();
+            
+            console.log('Purchase Tracker initialized successfully');
         }
         
-        // Start the app
+        // Start the app when the page loads
         init();
     </script>
 </body>
