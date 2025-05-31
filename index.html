@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <title>Purchase Tracker</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- iOS specific meta tags for better PWA experience -->
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <style>
+        /* CSS Variables for easy customization */
+        :root {
+            /* Main theme colors - CUSTOMIZE THESE */
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #60a5fa;
+            --accent-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            
+            /* UI Colors */
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            
+            /* Spacing */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            
+            /* Border radius */
+            --radius-sm: 6px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            
+            /* Safe area for iOS devices */
+            --safe-area-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: var(--safe-area-bottom);
+        }
+
+        /* Container */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: var(--spacing-md);
+            padding-bottom: calc(80px + var(--safe-area-bottom));
+        }
+
+        /* Header */
+        .header {
+            background: var(--surface);
+            padding: var(--spacing-lg) var(--spacing-md);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: var(--primary-color);
+            text-align: center;
+        }
+
+        /* Stats Cards */
+        .stats-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .stat-card {
+            background: var(--surface);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-top: var(--spacing-xs);
+        }
+
+        /* Purchase Form */
+        .purchase-form {
+            background: var(--surface);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        input, select {
+            width: 100%;
+            padding: var(--spacing-md);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 16px; /* Prevents zoom on iOS */
+            background: var(--background);
+            transition: all 0.2s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        /* Buttons */
+        .btn {
+            display: block;
+            width: 100%;
+            padding: var(--spacing-md);
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:active {
+            background: var(--primary-dark);
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        /* Recent Purchases */
+        .recent-purchases {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .purchase-item {
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .purchase-item:last-child {
+            border-bottom: none;
+        }
+
+        .purchase-info {
+            flex: 1;
+        }
+
+        .purchase-description {
+            font-weight: 500;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .purchase-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .purchase-amount {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border-color);
+            padding: var(--spacing-sm) var(--spacing-md);
+            padding-bottom: calc(var(--spacing-sm) + var(--safe-area-bottom));
+            display: flex;
+            gap: var(--spacing-sm);
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+        }
+
+        /* Sync Status */
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--background);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+        }
+
+        .sync-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-color);
+        }
+
+        .sync-indicator.pending {
+            background: var(--warning-color);
+        }
+
+        .sync-indicator.error {
+            background: var(--danger-color);
+        }
+
+        /* Loading and animations */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--text-secondary);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 375px) {
+            .container {
+                padding: var(--spacing-sm);
+            }
+            
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* iOS specific styles */
+        @supports (-webkit-touch-callout: none) {
+            input, select {
+                -webkit-appearance: none;
+            }
+        }
+
+        /* Offline indicator */
+        .offline-banner {
+            background: var(--warning-color);
+            color: white;
+            padding: var(--spacing-sm);
+            text-align: center;
+            font-size: 14px;
+            display: none;
+        }
+
+        body.offline .offline-banner {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Offline Banner -->
+    <div class="offline-banner">
+        You're offline - purchases will sync when connected
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>Purchase Tracker</h1>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Statistics -->
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-label">Today</div>
+                <div class="stat-value" id="todayTotal">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">This Month</div>
+                <div class="stat-value" id="monthTotal">$0.00</div>
+            </div>
+        </div>
+
+        <!-- Purchase Form -->
+        <div class="purchase-form">
+            <form id="purchaseForm">
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <input 
+                        type="text" 
+                        id="description" 
+                        name="description" 
+                        placeholder="What did you buy?" 
+                        required
+                        autocomplete="off"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="amount">Amount</label>
+                    <input 
+                        type="number" 
+                        id="amount" 
+                        name="amount" 
+                        placeholder="0.00" 
+                        step="0.01" 
+                        required
+                        inputmode="decimal"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <select id="category" name="category" required>
+                        <option value="">Select category</option>
+                        <option value="Food & Dining">Food & Dining</option>
+                        <option value="Transportation">Transportation</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Bills & Utilities">Bills & Utilities</option>
+                        <option value="Health & Medical">Health & Medical</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    Add Purchase
+                </button>
+            </form>
+        </div>
+
+        <!-- Recent Purchases -->
+        <div class="recent-purchases">
+            <div class="section-header">
+                <h2 class="section-title">Recent Purchases</h2>
+                <div class="sync-status">
+                    <span class="sync-indicator" id="syncIndicator"></span>
+                    <span id="syncText">Synced</span>
+                </div>
+            </div>
+            <div id="purchasesList">
+                <div class="empty-state">
+                    No purchases yet. Add your first purchase above!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <button class="btn btn-secondary" id="syncButton">
+            Sync Now
+        </button>
+        <button class="btn btn-secondary" id="exportButton">
+            Export Data
+        </button>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // ============================================
+        // PURCHASE TRACKER APP - MAIN JAVASCRIPT
+        // ============================================
+        
+        // Configuration object - CUSTOMIZE THESE SETTINGS
+        const CONFIG = {
+            // Google Apps Script Web App URL (you'll add this after deployment)
+            GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby3fO9Q0Pl1np0UO46xrQ2LPt3ryB_AvN8sv_fhP0yhW48xYV1Pvvx19enykH5c8VmuYw/exec',
+            
+            // Local storage keys
+            STORAGE_KEYS: {
+                PURCHASES: 'purchaseTracker_purchases',
+                PENDING_SYNC: 'purchaseTracker_pendingSync',
+                LAST_SYNC: 'purchaseTracker_lastSync',
+                SETTINGS: 'purchaseTracker_settings'
+            },
+            
+            // Number of recent purchases to display
+            RECENT_PURCHASES_LIMIT: 10,
+            
+            // Auto-sync interval (in milliseconds) - 5 minutes
+            AUTO_SYNC_INTERVAL: 5 * 60 * 1000,
+            
+            // Date format options
+            DATE_FORMAT: {
+                dateStyle: 'short',
+                timeStyle: 'short'
+            }
+        };
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        
+        /**
+         * Format currency values consistently
+         * @param {number} amount - The amount to format
+         * @returns {string} Formatted currency string
+         */
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        }
+
+        /**
+         * Format date for display
+         * @param {string} dateString - ISO date string
+         * @returns {string} Formatted date
+         */
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleString('en-US', CONFIG.DATE_FORMAT);
+        }
+
+        /**
+         * Check if dates are on the same day
+         * @param {Date} date1 - First date
+         * @param {Date} date2 - Second date
+         * @returns {boolean} True if same day
+         */
+        function isSameDay(date1, date2) {
+            return date1.getFullYear() === date2.getFullYear() &&
+                   date1.getMonth() === date2.getMonth() &&
+                   date1.getDate() === date2.getDate();
+        }
+
+        /**
+         * Check if dates are in the same month
+         * @param {Date} date1 - First date
+         * @param {Date} date2 - Second date
+         * @returns {boolean} True if same month
+         */
+        function isSameMonth(date1, date2) {
+            return date1.getFullYear() === date2.getFullYear() &&
+                   date1.getMonth() === date2.getMonth();
+        }
+
+        // ============================================
+        // LOCAL STORAGE MANAGEMENT
+        // ============================================
+        
+        /**
+         * Storage manager for handling all local storage operations
+         */
+        const Storage = {
+            /**
+             * Get all purchases from local storage
+             * @returns {Array} Array of purchase objects
+             */
+            getPurchases() {
+                const data = localStorage.getItem(CONFIG.STORAGE_KEYS.PURCHASES);
+                return data ? JSON.parse(data) : [];
+            },
+
+            /**
+             * Save purchases to local storage
+             * @param {Array} purchases - Array of purchase objects
+             */
+            savePurchases(purchases) {
+                localStorage.setItem(CONFIG.STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+            },
+
+            /**
+             * Add a single purchase
+             * @param {Object} purchase - Purchase object
+             */
+            addPurchase(purchase) {
+                const purchases = this.getPurchases();
+                purchases.unshift(purchase); // Add to beginning
+                this.savePurchases(purchases);
+                return purchase;
+            },
+
+            /**
+             * Get purchases that need to be synced
+             * @returns {Array} Array of unsynced purchases
+             */
+            getPendingSync() {
+                const data = localStorage.getItem(CONFIG.STORAGE_KEYS.PENDING_SYNC);
+                return data ? JSON.parse(data) : [];
+            },
+
+            /**
+             * Save pending sync purchases
+             * @param {Array} purchases - Array of purchases to sync
+             */
+            savePendingSync(purchases) {
+                localStorage.setItem(CONFIG.STORAGE_KEYS.PENDING_SYNC, JSON.stringify(purchases));
+            },
+
+            /**
+             * Clear pending sync after successful sync
+             */
+            clearPendingSync() {
+                localStorage.setItem(CONFIG.STORAGE_KEYS.PENDING_SYNC, '[]');
+            },
+
+            /**
+             * Update last sync timestamp
+             */
+            updateLastSync() {
+                localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
+            },
+
+            /**
+             * Get last sync timestamp
+             * @returns {string|null} ISO date string or null
+             */
+            getLastSync() {
+                return localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_SYNC);
+            }
+        };
+
+        // ============================================
+        // UI UPDATE FUNCTIONS
+        // ============================================
+        
+        /**
+         * Update the statistics display
+         */
+        function updateStats() {
+            const purchases = Storage.getPurchases();
+            const today = new Date();
+            
+            let todayTotal = 0;
+            let monthTotal = 0;
+            
+            purchases.forEach(purchase => {
+                const purchaseDate = new Date(purchase.timestamp);
+                const amount = parseFloat(purchase.amount);
+                
+                if (isSameDay(purchaseDate, today)) {
+                    todayTotal += amount;
+                }
+                
+                if (isSameMonth(purchaseDate, today)) {
+                    monthTotal += amount;
+                }
+            });
+            
+            // Update DOM
+            document.getElementById('todayTotal').textContent = formatCurrency(todayTotal);
+            document.getElementById('monthTotal').textContent = formatCurrency(monthTotal);
+        }
+
+        /**
+         * Update the recent purchases list
+         */
+        function updatePurchasesList() {
+            const purchases = Storage.getPurchases();
+            const listContainer = document.getElementById('purchasesList');
+            
+            if (purchases.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="empty-state">
+                        No purchases yet. Add your first purchase above!
+                    </div>
+                `;
+                return;
+            }
+            
+            // Show only recent purchases based on limit
+            const recentPurchases = purchases.slice(0, CONFIG.RECENT_PURCHASES_LIMIT);
+            
+            listContainer.innerHTML = recentPurchases.map(purchase => `
+                <div class="purchase-item">
+                    <div class="purchase-info">
+                        <div class="purchase-description">${purchase.description}</div>
+                        <div class="purchase-meta">
+                            ${purchase.category} • ${formatDate(purchase.timestamp)}
+                        </div>
+                    </div>
+                    <div class="purchase-amount">
+                        ${formatCurrency(purchase.amount)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        /**
+         * Update sync status indicator
+         * @param {string} status - 'synced', 'pending', 'syncing', 'error'
+         * @param {string} text - Text to display
+         */
+        function updateSyncStatus(status, text) {
+            const indicator = document.getElementById('syncIndicator');
+            const syncText = document.getElementById('syncText');
+            
+            indicator.className = 'sync-indicator';
+            
+            switch(status) {
+                case 'pending':
+                    indicator.classList.add('pending');
+                    break;
+                case 'error':
+                    indicator.classList.add('error');
+                    break;
+                case 'syncing':
+                    syncText.innerHTML = '<span class="loading"></span> Syncing...';
+                    return;
+            }
+            
+            syncText.textContent = text;
+        }
+
+        // ============================================
+        // FORM HANDLING
+        // ============================================
+        
+        /**
+         * Handle purchase form submission
+         */
+        document.getElementById('purchaseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Get form data
+            const formData = new FormData(e.target);
+            const purchase = {
+                id: Date.now().toString(), // Simple ID generation
+                description: formData.get('description'),
+                amount: parseFloat(formData.get('amount')),
+                category: formData.get('category'),
+                timestamp: new Date().toISOString(),
+                synced: false
+            };
+            
+            // Save purchase locally
+            Storage.addPurchase(purchase);
+            
+            // Add to pending sync
+            const pending = Storage.getPendingSync();
+            pending.push(purchase);
+            Storage.savePendingSync(pending);
+            
+            // Update UI
+            updateStats();
+            updatePurchasesList();
+            updateSyncStatus('pending', `${pending.length} pending`);
+            
+            // Reset form
+            e.target.reset();
+            
+            // Focus back on description field for quick entry
+            document.getElementById('description').focus();
+            
+            // Try to sync if online
+            if (navigator.onLine) {
+                // Delay sync slightly to allow for multiple quick entries
+                setTimeout(() => syncPurchases(), 2000);
+            }
+        });
+
+        // ============================================
+        // SYNC FUNCTIONALITY
+        // ============================================
+        
+        /**
+         * Sync purchases with Google Sheets
+         */
+        async function syncPurchases() {
+            // Check if we have the Google Script URL configured
+            if (CONFIG.GOOGLE_SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
+                updateSyncStatus('error', 'Sync not configured');
+                console.warn('Google Apps Script URL not configured');
+                return;
+            }
+            
+            const pending = Storage.getPendingSync();
+            
+            if (pending.length === 0) {
+                updateSyncStatus('synced', 'All synced');
+                return;
+            }
+            
+            updateSyncStatus('syncing', 'Syncing...');
+            
+            try {
+                // Send purchases to Google Sheets
+                const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Required for Google Apps Script
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'addPurchases',
+                        purchases: pending
+                    })
+                });
+                
+                // With no-cors, we can't read the response, so we assume success
+                // Mark purchases as synced
+                const allPurchases = Storage.getPurchases();
+                allPurchases.forEach(purchase => {
+                    if (pending.find(p => p.id === purchase.id)) {
+                        purchase.synced = true;
+                    }
+                });
+                Storage.savePurchases(allPurchases);
+                
+                // Clear pending sync
+                Storage.clearPendingSync();
+                Storage.updateLastSync();
+                
+                updateSyncStatus('synced', 'All synced');
+                
+            } catch (error) {
+                console.error('Sync error:', error);
+                updateSyncStatus('error', 'Sync failed');
+            }
+        }
+
+        // ============================================
+        // EXPORT FUNCTIONALITY
+        // ============================================
+        
+        /**
+         * Export purchases as CSV
+         */
+        function exportPurchases() {
+            const purchases = Storage.getPurchases();
+            
+            if (purchases.length === 0) {
+                alert('No purchases to export');
+                return;
+            }
+            
+            // Create CSV content
+            const headers = ['Date', 'Time', 'Description', 'Amount', 'Category'];
+            const rows = purchases.map(purchase => {
+                const date = new Date(purchase.timestamp);
+                return [
+                    date.toLocaleDateString(),
+                    date.toLocaleTimeString(),
+                    purchase.description,
+                    purchase.amount,
+                    purchase.category
+                ];
+            });
+            
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+            ].join('\n');
+            
+            // Create download link
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `purchases_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+        
+        // Sync button
+        document.getElementById('syncButton').addEventListener('click', syncPurchases);
+        
+        // Export button
+        document.getElementById('exportButton').addEventListener('click', exportPurchases);
+        
+        // Online/Offline detection
+        window.addEventListener('online', () => {
+            document.body.classList.remove('offline');
+            syncPurchases(); // Auto-sync when coming back online
+        });
+        
+        window.addEventListener('offline', () => {
+            document.body.classList.add('offline');
+        });
+        
+        // ============================================
+        // SERVICE WORKER REGISTRATION
+        // ============================================
+        
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            });
+        }
+        
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        
+        /**
+         * Initialize the app on load
+         */
+        function init() {
+            // Update UI with current data
+            updateStats();
+            updatePurchasesList();
+            
+            // Check online status
+            if (!navigator.onLine) {
+                document.body.classList.add('offline');
+            }
+            
+            // Check for pending sync
+            const pending = Storage.getPendingSync();
+            if (pending.length > 0) {
+                updateSyncStatus('pending', `${pending.length} pending`);
+            } else {
+                updateSyncStatus('synced', 'All synced');
+            }
+            
+            // Set up auto-sync
+            setInterval(() => {
+                if (navigator.onLine) {
+                    syncPurchases();
+                }
+            }, CONFIG.AUTO_SYNC_INTERVAL);
+            
+            // Focus on description field
+            document.getElementById('description').focus();
+        }
+        
+        // Start the app
+        init();
+    </script>
+</body>
+</html>
