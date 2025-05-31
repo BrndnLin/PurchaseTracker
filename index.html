@@ -7,6 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#2563eb">
     <title>Purchase Tracker</title>
+    <h1>Purchase Tracker - EDITED VERSION</h1>
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
@@ -952,13 +953,15 @@
         // This enables the app to work offline (Progressive Web App feature)
         // ============================================
         
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('Service Worker registered'))
-                    .catch(err => console.error('Service Worker registration failed:', err));
-            });
-        }
+        // COMMENT OUT WHILE DEVELOPING TO AVOID STATIC CACHE ISSUES
+
+        // if ('serviceWorker' in navigator) {
+        //     window.addEventListener('load', () => {
+        //         navigator.serviceWorker.register('sw.js')
+        //             .then(reg => console.log('Service Worker registered'))
+        //             .catch(err => console.error('Service Worker registration failed:', err));
+        //     });
+        // }
         
         // ============================================
         // INITIALIZATION
