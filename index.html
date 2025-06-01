@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#2563eb">
+    <!-- Theme color now uses the midnight blue primary color for mobile browser UI -->
+    <meta name="theme-color" content="#0ea5e9">
     <title>Purchase Tracker</title>
     
     <!-- PWA Manifest -->
@@ -18,427 +19,759 @@
     <link rel="icon" type="image/png" href="icon-192.png">
     
     <style>
-        /* CSS Variables for easy customization */
+        /* ============================================
+         * CSS CUSTOM PROPERTIES (CSS Variables)
+         * ============================================
+         * CSS Variables allow us to define reusable values that can be changed in one place.
+         * Think of them like constants in programming - define once, use everywhere.
+         * Variables are defined with -- prefix and used with var() function.
+         */
         :root {
-            /* Main theme colors - CUSTOMIZE THESE */
-            --primary-color: #2563eb;
-            --primary-dark: #1d4ed8;
-            --primary-light: #60a5fa;
-            --accent-color: #10b981;
-            --danger-color: #ef4444;
-            --warning-color: #f59e0b;
+            /* MIDNIGHT BLUE THEME COLORS
+             * These colors create a dark, professional look with blue accents
+             * Each color serves a specific purpose in the UI design
+             */
+            --primary-color: #0ea5e9;    /* Main brand color - bright sky blue for buttons, headings */
+            --primary-dark: #0284c7;     /* Darker version for hover states and pressed buttons */
+            --primary-light: #38bdf8;    /* Lighter version for subtle highlights */
+            --accent-color: #06d6a0;     /* Complementary green for success states and positive actions */
             
-            /* UI Colors */
-            --background: #f8fafc;
-            --surface: #ffffff;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --border-color: #e2e8f0;
+            /* BACKGROUND COLORS
+             * Dark theme uses multiple shades of dark blue/gray for depth
+             */
+            --background: #0c1420;       /* Main page background - very dark blue */
+            --surface: #1e293b;          /* Card/container backgrounds - lighter than main background */
             
-            /* Spacing */
-            --spacing-xs: 4px;
-            --spacing-sm: 8px;
-            --spacing-md: 16px;
-            --spacing-lg: 24px;
-            --spacing-xl: 32px;
+            /* TEXT COLORS
+             * Light colors on dark background for good contrast and readability
+             */
+            --text-primary: #f8fafc;     /* Main text color - almost white for high contrast */
+            --text-secondary: #94a3b8;   /* Secondary text - gray for less important info */
             
-            /* Border radius */
-            --radius-sm: 6px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
+            /* UI ELEMENT COLORS */
+            --border-color: #475569;     /* Borders between elements - medium gray */
+            --danger-color: #ef4444;     /* Red for errors and warnings */
+            --warning-color: #f59e0b;    /* Orange/yellow for caution states */
             
-            /* Safe area for iOS devices */
+            /* SPACING SYSTEM
+             * Consistent spacing creates visual harmony and makes the design feel organized
+             * Using multiples of 4px is a common design system practice
+             */
+            --spacing-xs: 4px;   /* Extra small - for tight spacing */
+            --spacing-sm: 8px;   /* Small - for compact layouts */
+            --spacing-md: 16px;  /* Medium - most common spacing */
+            --spacing-lg: 24px;  /* Large - for section separation */
+            --spacing-xl: 32px;  /* Extra large - for major sections */
+            
+            /* BORDER RADIUS SYSTEM
+             * Consistent rounded corners create a modern, friendly feel
+             */
+            --radius-sm: 6px;    /* Small radius for buttons and inputs */
+            --radius-md: 12px;   /* Medium radius for cards */
+            --radius-lg: 16px;   /* Large radius for major containers */
+            
+            /* MOBILE DEVICE SUPPORT
+             * Safe area handles the "notch" on newer iPhones and curved screens
+             */
             --safe-area-bottom: env(safe-area-inset-bottom);
         }
 
-        /* Reset and base styles */
+        /* ============================================
+         * RESET AND BASE STYLES
+         * ============================================
+         * CSS Reset removes browser default styling to ensure consistency
+         * across different browsers (Chrome, Firefox, Safari, etc.)
+         */
         * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+            margin: 0;           /* Remove default margins */
+            padding: 0;          /* Remove default padding */
+            box-sizing: border-box;  /* Include padding/border in element width calculations */
         }
 
+        /* BODY STYLING
+         * Sets up the basic appearance and behavior of the entire page
+         */
         body {
+            /* Font stack: tries -apple-system first (macOS), then BlinkMacSystemFont (Chrome on macOS),
+             * then falls back to common system fonts for best performance and native look */
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--background);
-            color: var(--text-primary);
-            line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
-            padding-bottom: var(--safe-area-bottom);
+            background-color: var(--background);  /* Use our dark blue background */
+            color: var(--text-primary);           /* Use light text color */
+            line-height: 1.6;                     /* Improve text readability with more line spacing */
+            -webkit-font-smoothing: antialiased;  /* Make fonts look smoother on macOS/iOS */
+            padding-bottom: var(--safe-area-bottom);  /* Account for iPhone home indicator */
         }
 
-        /* Container */
+        /* ============================================
+         * LAYOUT CONTAINERS
+         * ============================================
+         */
+        
+        /* MAIN CONTAINER
+         * Centers content and provides consistent spacing on all screen sizes
+         */
         .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: var(--spacing-md);
-            padding-bottom: calc(80px + var(--safe-area-bottom));
+            max-width: 600px;                    /* Limit width on large screens for better readability */
+            margin: 0 auto;                      /* Center horizontally */
+            padding: var(--spacing-md);          /* Add padding on all sides */
+            padding-bottom: var(--spacing-md);   /* Bottom padding (no longer need space for bottom nav) */
         }
 
-        /* Header */
+        /* HEADER STYLING
+         * Sticky header stays at top when scrolling for easy access to app title
+         */
         .header {
-            background: var(--surface);
-            padding: var(--spacing-lg) var(--spacing-md);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            background: var(--surface);          /* Use surface color for contrast with main background */
+            padding: var(--spacing-lg) var(--spacing-md);  /* More vertical padding for visual importance */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);  /* Subtle shadow to separate from content */
+            position: sticky;                     /* Header stays at top when scrolling */
+            top: 0;                              /* Stick to very top of viewport */
+            z-index: 100;                        /* Ensure header appears above other content */
         }
 
         .header h1 {
-            font-size: 24px;
-            color: var(--primary-color);
-            text-align: center;
+            font-size: 24px;                     /* Large, readable title */
+            color: var(--primary-color);         /* Use brand color for the title */
+            text-align: center;                  /* Center the title */
         }
 
-        /* Stats Cards */
+        /* ============================================
+         * STATISTICS CARDS
+         * ============================================
+         * Grid layout automatically arranges cards side by side on larger screens,
+         * stacks them vertically on smaller screens
+         */
         .stats-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--spacing-md);
-            margin-bottom: var(--spacing-lg);
+            display: grid;                        /* Use CSS Grid for flexible layout */
+            grid-template-columns: 1fr 1fr;      /* Two equal-width columns */
+            gap: var(--spacing-md);              /* Space between cards */
+            margin-bottom: var(--spacing-lg);    /* Space below the stats section */
         }
 
         .stat-card {
-            background: var(--surface);
-            padding: var(--spacing-md);
-            border-radius: var(--radius-md);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            text-align: center;
+            background: var(--surface);          /* Card background color */
+            padding: var(--spacing-md);          /* Inner spacing */
+            border-radius: var(--radius-md);     /* Rounded corners */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);  /* Subtle shadow for depth */
+            text-align: center;                  /* Center all content in the card */
         }
 
         .stat-label {
-            font-size: 12px;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-size: 12px;                     /* Small text for the label */
+            color: var(--text-secondary);        /* Dimmer color for less emphasis */
+            text-transform: uppercase;           /* ALL CAPS for style */
+            letter-spacing: 0.5px;              /* Slight spacing between letters */
         }
 
         .stat-value {
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--primary-color);
-            margin-top: var(--spacing-xs);
+            font-size: 24px;                     /* Large, prominent number */
+            font-weight: 600;                    /* Semi-bold for emphasis */
+            color: var(--primary-color);         /* Brand color to draw attention */
+            margin-top: var(--spacing-xs);       /* Small space above the number */
         }
 
-        /* Purchase Form */
+        /* ============================================
+         * PURCHASE FORM STYLING
+         * ============================================
+         */
         .purchase-form {
-            background: var(--surface);
-            padding: var(--spacing-lg);
-            border-radius: var(--radius-lg);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            margin-bottom: var(--spacing-lg);
+            background: var(--surface);          /* Card-like appearance */
+            padding: var(--spacing-lg);          /* Generous inner spacing */
+            border-radius: var(--radius-lg);     /* More rounded corners for friendliness */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);  /* Depth shadow */
+            margin-bottom: var(--spacing-lg);    /* Space below form */
         }
 
         .form-group {
-            margin-bottom: var(--spacing-md);
+            margin-bottom: var(--spacing-md);    /* Space between form fields */
         }
 
+        /* FORM ROW LAYOUT
+         * NEW: Allows description and amount to sit side by side for space optimization
+         * Uses flexbox for responsive layout that stacks on very small screens
+         */
+        .form-row {
+            display: flex;                        /* Horizontal layout */
+            gap: var(--spacing-md);              /* Space between description and amount fields */
+        }
+
+        /* FORM LABELS
+         * Clear, readable labels help users understand what to enter
+         */
         label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-secondary);
-            margin-bottom: var(--spacing-xs);
+            display: block;                       /* Labels take full width, stack above inputs */
+            font-size: 14px;                     /* Readable but not too large */
+            font-weight: 500;                    /* Medium weight for clarity */
+            color: var(--text-secondary);        /* Slightly dimmer than main text */
+            margin-bottom: var(--spacing-xs);    /* Small gap between label and input */
         }
 
+        /* FORM INPUTS AND SELECTS
+         * Consistent styling for all input types creates a cohesive experience
+         */
         input, select {
-            width: 100%;
-            padding: var(--spacing-md);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            font-size: 16px; /* Prevents zoom on iOS */
-            background: var(--background);
-            transition: all 0.2s;
+            width: 100%;                          /* Full width of container */
+            padding: var(--spacing-md);          /* Comfortable padding for touch targets */
+            border: 1px solid var(--border-color);  /* Subtle border */
+            border-radius: var(--radius-sm);     /* Slightly rounded corners */
+            font-size: 16px;                     /* Prevents zoom on iOS devices */
+            background: var(--background);       /* Slightly different from surface for contrast */
+            color: var(--text-primary);          /* Ensure text is readable */
+            transition: all 0.2s;                /* Smooth animation for focus states */
         }
 
+        /* AMOUNT INPUT OPTIMIZATION
+         * NEW: Smaller width for amount field since it's typically just a few digits
+         * flex-shrink: 0 prevents it from getting smaller than 120px
+         */
+        .amount-input {
+            width: 120px;                         /* Fixed width for amount field */
+            flex-shrink: 0;                       /* Don't shrink below this width */
+        }
+
+        /* FOCUS STATES
+         * Visual feedback when user clicks/taps on form elements
+         */
         input:focus, select:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            outline: none;                        /* Remove default browser outline */
+            border-color: var(--primary-color);  /* Highlight border with brand color */
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);  /* Subtle glow effect */
         }
 
-        /* Buttons */
+        /* ============================================
+         * CATEGORY BUTTON STYLING
+         * ============================================
+         * NEW SECTION: Replaces the dropdown select with interactive buttons
+         * Provides better mobile experience and faster category selection
+         */
+        
+        /* CATEGORY BUTTON GRID
+         * 2-column grid layout that works well on mobile devices
+         * Automatically adjusts to container width while maintaining consistent spacing
+         */
+        .category-grid {
+            display: grid;                        /* Use CSS Grid for precise control */
+            grid-template-columns: 1fr 1fr;      /* Two equal-width columns */
+            gap: var(--spacing-sm);              /* Space between buttons */
+        }
+
+        /* INDIVIDUAL CATEGORY BUTTONS
+         * Styled to look clickable and provide clear visual feedback
+         * Large enough for comfortable touch interaction on mobile devices
+         */
+        .category-btn {
+            padding: var(--spacing-md);          /* Comfortable padding for touch targets */
+            border: 1px solid var(--border-color);  /* Subtle border to define button area */
+            border-radius: var(--radius-sm);     /* Rounded corners to match other form elements */
+            background: transparent;             /* Transparent background in unselected state */
+            color: var(--text-secondary);        /* Muted text color for unselected buttons */
+            font-size: 14px;                     /* Readable text size */
+            cursor: pointer;                      /* Hand cursor indicates interactive element */
+            transition: all 0.2s;                /* Smooth animation for hover and selection */
+            text-align: center;                  /* Center the category text */
+            font-weight: 500;                    /* Medium font weight for better readability */
+            /* Remove default button styling that browsers add */
+            font-family: inherit;                /* Use same font as rest of page */
+            -webkit-appearance: none;            /* Remove iOS default button styling */
+            appearance: none;                    /* Standard property for broader compatibility */
+        }
+
+        /* CATEGORY BUTTON HOVER STATE
+         * Provides immediate visual feedback when user hovers over a button
+         * Helps users understand which button they're about to click
+         */
+        .category-btn:hover {
+            border-color: var(--primary-color);  /* Brand color border on hover */
+            color: var(--text-primary);          /* Brighter text on hover */
+            background: rgba(14, 165, 233, 0.05); /* Very subtle background tint */
+        }
+
+        /* CATEGORY BUTTON SELECTED STATE
+         * Clear visual indication of which category is currently selected
+         * Uses brand colors to make selection obvious
+         */
+        .category-btn.selected {
+            background: var(--primary-color);    /* Brand color background when selected */
+            border-color: var(--primary-color);  /* Matching border color */
+            color: white;                         /* White text for contrast against blue background */
+        }
+
+        /* CATEGORY BUTTON ACTIVE/PRESSED STATE
+         * Provides tactile feedback when button is being pressed
+         * Small scale effect mimics physical button press
+         */
+        .category-btn:active {
+            transform: scale(0.98);              /* Slightly shrink when pressed */
+        }
+
+        /* ============================================
+         * BUTTON STYLING
+         * ============================================
+         */
         .btn {
-            display: block;
-            width: 100%;
-            padding: var(--spacing-md);
-            border: none;
-            border-radius: var(--radius-sm);
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
+            display: block;                       /* Full-width buttons */
+            width: 100%;                          /* Take full container width */
+            padding: var(--spacing-md);          /* Comfortable padding for touch */
+            border: none;                         /* Remove default button border */
+            border-radius: var(--radius-sm);     /* Rounded corners */
+            font-size: 16px;                     /* Readable text */
+            font-weight: 600;                    /* Semi-bold for emphasis */
+            cursor: pointer;                      /* Hand cursor indicates clickable */
+            transition: all 0.2s;                /* Smooth animations */
         }
 
+        /* PRIMARY BUTTON
+         * Main action button (like "Add Purchase") gets the brand color
+         */
         .btn-primary {
-            background: var(--primary-color);
-            color: white;
+            background: var(--primary-color);    /* Brand color background */
+            color: white;                         /* White text for contrast */
         }
 
+        /* BUTTON ACTIVE STATE
+         * Visual feedback when button is pressed/tapped
+         */
         .btn-primary:active {
-            background: var(--primary-dark);
-            transform: scale(0.98);
+            background: var(--primary-dark);     /* Darker shade when pressed */
+            transform: scale(0.98);              /* Slightly shrink for press effect */
         }
 
         .btn-secondary {
-            background: var(--border-color);
-            color: var(--text-primary);
+            background: var(--border-color);     /* Neutral background */
+            color: var(--text-primary);          /* Normal text color */
         }
 
-        /* Recent Purchases */
+        /* ============================================
+         * RECENT PURCHASES SECTION
+         * ============================================
+         */
         .recent-purchases {
-            background: var(--surface);
-            border-radius: var(--radius-lg);
-            padding: var(--spacing-lg);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            background: var(--surface);          /* Card background */
+            border-radius: var(--radius-lg);     /* Rounded corners */
+            padding: var(--spacing-lg);          /* Inner spacing */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);  /* Depth shadow */
         }
 
+        /* SECTION HEADER
+         * Contains the title and sync controls in a horizontal layout
+         */
         .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--spacing-md);
+            display: flex;                        /* Horizontal layout */
+            justify-content: space-between;      /* Push title left, controls right */
+            align-items: center;                  /* Vertically center both elements */
+            margin-bottom: var(--spacing-md);    /* Space below header */
         }
 
         .section-title {
-            font-size: 18px;
-            font-weight: 600;
+            font-size: 18px;                     /* Prominent section heading */
+            font-weight: 600;                    /* Semi-bold for emphasis */
         }
 
+        /* INDIVIDUAL PURCHASE ITEMS
+         * Each purchase is displayed as a row with description on left, amount on right
+         */
         .purchase-item {
-            padding: var(--spacing-md);
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: var(--spacing-md);          /* Comfortable padding */
+            border-bottom: 1px solid var(--border-color);  /* Separator line */
+            display: flex;                        /* Horizontal layout */
+            justify-content: space-between;      /* Description left, amount right */
+            align-items: center;                  /* Vertically center content */
         }
 
+        /* Remove border from last item to avoid double-border with container */
         .purchase-item:last-child {
             border-bottom: none;
         }
 
         .purchase-info {
-            flex: 1;
+            flex: 1;                              /* Take up remaining space */
         }
 
         .purchase-description {
-            font-weight: 500;
-            margin-bottom: var(--spacing-xs);
+            font-weight: 500;                    /* Medium weight for the main text */
+            margin-bottom: var(--spacing-xs);    /* Small gap before meta info */
         }
 
+        /* META INFORMATION
+         * Category and timestamp in smaller, dimmer text
+         */
         .purchase-meta {
-            font-size: 12px;
-            color: var(--text-secondary);
+            font-size: 12px;                     /* Smaller text */
+            color: var(--text-secondary);        /* Dimmer color */
         }
 
         .purchase-amount {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--primary-color);
+            font-size: 18px;                     /* Prominent amount display */
+            font-weight: 600;                    /* Bold for emphasis */
+            color: var(--primary-color);         /* Brand color to highlight money */
         }
 
-        /* Bottom Navigation */
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--surface);
-            border-top: 1px solid var(--border-color);
-            padding: var(--spacing-sm) var(--spacing-md);
-            padding-bottom: calc(var(--spacing-sm) + var(--safe-area-bottom));
-            display: flex;
-            gap: var(--spacing-sm);
-            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+        /* ============================================
+         * SYNC CONTROLS AND STATUS
+         * ============================================
+         */
+        
+        /* SYNC CONTROLS CONTAINER
+         * Groups the sync button and status indicator together
+         */
+        .sync-controls {
+            display: flex;                        /* Horizontal layout */
+            align-items: center;                  /* Vertically center */
+            gap: var(--spacing-sm);              /* Small gap between button and status */
         }
 
-        /* Sync Status */
+        /* SMALL SYNC BUTTON
+         * Compact button that sits next to the sync status
+         */
+        .sync-btn-small {
+            width: 39px;                          /* Square button */
+            height: 39px;                         /* Square button */
+            padding: 2px;                         /* Minimal padding */
+            border: 1px solid var(--border-color);  /* Subtle border */
+            border-radius: var(--radius-sm);     /* Rounded corners */
+            background: var(--surface);          /* Same as container background */
+            color: var(--text-secondary);        /* Muted color */
+            cursor: pointer;                      /* Hand cursor */
+            transition: all 0.2s;                /* Smooth hover effects */
+            display: flex;                        /* Center the icon */
+            align-items: center;                  /* Center vertically */
+            justify-content: center;             /* Center horizontally */
+        }
+
+        /* REFRESH ICON STYLING
+         * Style the refresh icon image inside the sync button
+         */
+        .refresh-icon-img {
+            width: 25px;                          /* Icon size */
+            height: 25px;                         /* Icon size */
+            opacity: 0.6;                         /* Slightly transparent */
+            transition: opacity 0.2s;            /* Smooth opacity change */
+        }
+
+        /* HOVER EFFECTS
+         * Visual feedback when user hovers over sync button
+         */
+        .sync-btn-small:hover .refresh-icon-img {
+            opacity: 1;                           /* Full opacity on hover */
+        }
+
+        .sync-btn-small:hover {
+            background: var(--background);       /* Slight background change */
+            color: var(--primary-color);         /* Brand color */
+        }
+
+        /* ACTIVE/PRESSED STATE */
+        .sync-btn-small:active {
+            transform: scale(0.95);              /* Slightly shrink when pressed */
+        }
+
+        /* SYNC STATUS INDICATOR
+         * Shows current sync state with colored dot and text
+         */
         .sync-status {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-            padding: var(--spacing-sm) var(--spacing-md);
-            background: var(--background);
-            border-radius: var(--radius-sm);
-            font-size: 14px;
+            display: flex;                        /* Horizontal layout */
+            align-items: center;                  /* Vertically center */
+            gap: var(--spacing-sm);              /* Gap between dot and text */
+            padding: var(--spacing-sm) var(--spacing-md);  /* Comfortable padding */
+            background: var(--background);       /* Subtle background difference */
+            border-radius: var(--radius-sm);     /* Rounded corners */
+            font-size: 14px;                     /* Readable text size */
         }
 
+        /* SYNC STATUS DOT
+         * Colored indicator that shows sync state visually
+         */
         .sync-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--accent-color);
+            width: 8px;                           /* Small dot */
+            height: 8px;                          /* Small dot */
+            border-radius: 50%;                   /* Perfect circle */
+            background: var(--accent-color);     /* Green for synced state */
         }
 
+        /* DIFFERENT STATES FOR SYNC INDICATOR */
         .sync-indicator.pending {
-            background: var(--warning-color);
+            background: var(--warning-color);    /* Orange/yellow for pending */
         }
 
         .sync-indicator.error {
-            background: var(--danger-color);
+            background: var(--danger-color);     /* Red for errors */
         }
 
-        /* Loading and animations */
+        /* ============================================
+         * ANIMATIONS AND LOADING STATES
+         * ============================================
+         */
+        
+        /* SPINNING ANIMATION
+         * Used for loading indicators to show something is happening
+         */
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }    /* Rotate 360 degrees */
         }
 
+        /* LOADING SPINNER
+         * Small spinning circle to indicate processing
+         */
         .loading {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid var(--border-color);
-            border-top-color: var(--primary-color);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+            display: inline-block;               /* Inline with text */
+            width: 16px;                         /* Small size */
+            height: 16px;                        /* Small size */
+            border: 2px solid var(--border-color);  /* Light gray border */
+            border-top-color: var(--primary-color); /* Brand color on top */
+            border-radius: 50%;                  /* Perfect circle */
+            animation: spin 0.8s linear infinite;   /* Continuous spinning */
         }
 
-        /* Empty state */
+        /* ============================================
+         * EMPTY STATE AND MESSAGES
+         * ============================================
+         */
+        
+        /* EMPTY STATE
+         * Shown when no purchases exist yet
+         */
         .empty-state {
-            text-align: center;
-            padding: var(--spacing-xl);
-            color: var(--text-secondary);
+            text-align: center;                  /* Center the message */
+            padding: var(--spacing-xl);         /* Generous padding */
+            color: var(--text-secondary);       /* Dimmer color for less emphasis */
         }
 
-        /* Error message styling */
+        /* ERROR MESSAGES
+         * Red background for error notifications
+         */
         .error-message {
-            background: var(--danger-color);
-            color: white;
-            padding: var(--spacing-md);
-            border-radius: var(--radius-sm);
-            margin-bottom: var(--spacing-md);
-            text-align: center;
+            background: var(--danger-color);    /* Red background */
+            color: white;                        /* White text for contrast */
+            padding: var(--spacing-md);         /* Comfortable padding */
+            border-radius: var(--radius-sm);    /* Rounded corners */
+            margin-bottom: var(--spacing-md);   /* Space below message */
+            text-align: center;                 /* Center the text */
         }
 
-        /* Success message styling */
+        /* SUCCESS MESSAGES
+         * Green background for success notifications
+         */
         .success-message {
-            background: var(--accent-color);
-            color: white;
-            padding: var(--spacing-md);
-            border-radius: var(--radius-sm);
-            margin-bottom: var(--spacing-md);
-            text-align: center;
+            background: var(--accent-color);    /* Green background */
+            color: white;                        /* White text for contrast */
+            padding: var(--spacing-md);         /* Comfortable padding */
+            border-radius: var(--radius-sm);    /* Rounded corners */
+            margin-bottom: var(--spacing-md);   /* Space below message */
+            text-align: center;                 /* Center the text */
         }
 
-        /* Responsive adjustments */
+        /* ============================================
+         * RESPONSIVE DESIGN
+         * ============================================
+         * Media queries adjust layout for different screen sizes
+         */
+        
+        /* SMALL PHONE SCREENS (iPhone SE, older phones) */
         @media (max-width: 375px) {
             .container {
-                padding: var(--spacing-sm);
+                padding: var(--spacing-sm);     /* Less padding on very small screens */
             }
             
+            /* Stack stat cards vertically on small screens */
             .stats-container {
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr;     /* Single column layout */
+            }
+
+            /* RESPONSIVE FORM LAYOUT
+             * NEW: Stack description and amount vertically on very small screens
+             * This ensures both fields remain usable even on tiny screens
+             */
+            .form-row {
+                flex-direction: column;          /* Stack vertically instead of side-by-side */
+            }
+
+            .amount-input {
+                width: 100%;                     /* Full width when stacked */
             }
         }
 
-        /* iOS specific styles */
+        /* ============================================
+         * IOS-SPECIFIC OPTIMIZATIONS
+         * ============================================
+         */
+        
+        /* iOS WEBKIT SPECIFIC STYLES
+         * Only apply these styles on iOS Safari
+         */
         @supports (-webkit-touch-callout: none) {
             input, select {
-                -webkit-appearance: none;
+                -webkit-appearance: none;        /* Remove iOS default styling */
+                appearance: none;                /* Standard property for broader compatibility */
             }
         }
 
-        /* Offline indicator */
+        /* ============================================
+         * OFFLINE FUNCTIONALITY
+         * ============================================
+         */
+        
+        /* OFFLINE BANNER
+         * Warning banner shown when user loses internet connection
+         */
         .offline-banner {
-            background: var(--warning-color);
-            color: white;
-            padding: var(--spacing-sm);
-            text-align: center;
-            font-size: 14px;
-            display: none;
+            background: var(--warning-color);   /* Orange background for warning */
+            color: white;                        /* White text */
+            padding: var(--spacing-sm);         /* Compact padding */
+            text-align: center;                 /* Center the message */
+            font-size: 14px;                    /* Readable text size */
+            display: none;                       /* Hidden by default */
         }
 
+        /* Show offline banner when body has 'offline' class */
         body.offline .offline-banner {
-            display: block;
+            display: block;                      /* Make visible when offline */
         }
     </style>
 </head>
 <body>
-    <!-- Offline Banner -->
+    <!-- OFFLINE INDICATOR
+         This banner appears when the user loses internet connection.
+         JavaScript adds/removes the 'offline' class on the body element. -->
     <div class="offline-banner">
         You're offline - purchases will sync when connected
     </div>
 
-    <!-- Header -->
+    <!-- HEADER SECTION
+         Sticky header that stays at the top when scrolling.
+         Contains the app title in the brand color. -->
     <div class="header">
         <h1>Purchase Tracker</h1>
     </div>
 
-    <!-- Main Container -->
+    <!-- MAIN CONTAINER
+         Centers all content and provides consistent spacing.
+         Max-width prevents content from becoming too wide on large screens. -->
     <div class="container">
-        <!-- Error/Success Messages -->
+        <!-- MESSAGE CONTAINER
+             JavaScript dynamically adds success/error messages here.
+             Messages appear temporarily and auto-hide after 5 seconds. -->
         <div id="messageContainer"></div>
 
-        <!-- Statistics -->
+        <!-- STATISTICS SECTION
+             Shows today's and this week's spending totals.
+             Uses CSS Grid for responsive two-column layout. -->
         <div class="stats-container">
             <div class="stat-card">
                 <div class="stat-label">Today</div>
+                <!-- JavaScript updates this value when purchases are added -->
                 <div class="stat-value" id="todayTotal">$0.00</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">This Month</div>
-                <div class="stat-value" id="monthTotal">$0.00</div>
+                <div class="stat-label">This Week</div>
+                <!-- JavaScript calculates weekly total from all purchases -->
+                <div class="stat-value" id="weekTotal">$0.00</div>
             </div>
         </div>
 
-        <!-- Purchase Form -->
+        <!-- PURCHASE FORM
+             Main form for adding new purchases.
+             JavaScript handles form submission and validation. -->
         <div class="purchase-form">
+            <!-- The form element captures user input and triggers JavaScript when submitted -->
             <form id="purchaseForm">
-                <div class="form-group">
-                    <label for="description">Description</label>
-                    <input 
-                        type="text" 
-                        id="description" 
-                        name="description" 
-                        placeholder="What did you buy?" 
-                        required
-                        autocomplete="off"
-                    >
+                <!-- OPTIMIZED DESCRIPTION AND AMOUNT ROW
+                     NEW: Description and amount fields now sit side by side to save vertical space
+                     On small screens, they stack vertically for better usability -->
+                <div class="form-row">
+                    <!-- DESCRIPTION FIELD (takes remaining space) -->
+                    <div style="flex: 1;">
+                        <label for="description">Description</label>
+                        <input 
+                            type="text" 
+                            id="description" 
+                            name="description" 
+                            placeholder="What did you buy?" 
+                            required
+                            autocomplete="off"
+                        >
+                    </div>
+                    
+                    <!-- AMOUNT FIELD (optimized smaller width) -->
+                    <div>
+                        <label for="amount">Amount</label>
+                        <input 
+                            type="number" 
+                            id="amount" 
+                            name="amount" 
+                            class="amount-input"
+                            placeholder="0.00" 
+                            step="0.01" 
+                            required
+                            inputmode="decimal"
+                        >
+                    </div>
                 </div>
 
+                <!-- CATEGORY SELECTION BUTTONS
+                     NEW: Replaces the dropdown select with interactive buttons
+                     Provides faster selection and better mobile experience -->
                 <div class="form-group">
-                    <label for="amount">Amount</label>
-                    <input 
-                        type="number" 
-                        id="amount" 
-                        name="amount" 
-                        placeholder="0.00" 
-                        step="0.01" 
-                        required
-                        inputmode="decimal"
-                    >
+                    <label>Category</label>
+                    <div class="category-grid">
+                        <button type="button" class="category-btn" data-category="Food & Dining">
+                            Food & Dining
+                        </button>
+                        <button type="button" class="category-btn" data-category="Transportation">
+                            Transportation
+                        </button>
+                        <button type="button" class="category-btn" data-category="Shopping">
+                            Shopping
+                        </button>
+                        <button type="button" class="category-btn" data-category="Entertainment">
+                            Entertainment
+                        </button>
+                        <button type="button" class="category-btn" data-category="Bills & Utilities">
+                            Bills & Utilities
+                        </button>
+                        <button type="button" class="category-btn" data-category="Health & Medical">
+                            Health & Medical
+                        </button>
+                        <button type="button" class="category-btn" data-category="Other">
+                            Other
+                        </button>
+                    </div>
+                    <!-- Hidden input to store selected category for form submission
+                         This maintains compatibility with existing form processing code -->
+                    <input type="hidden" id="category" name="category" required>
                 </div>
 
-                <div class="form-group">
-                    <label for="category">Category</label>
-                    <select id="category" name="category" required>
-                        <option value="">Select category</option>
-                        <option value="Food & Dining">Food & Dining</option>
-                        <option value="Transportation">Transportation</option>
-                        <option value="Shopping">Shopping</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Bills & Utilities">Bills & Utilities</option>
-                        <option value="Health & Medical">Health & Medical</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-
+                <!-- SUBMIT BUTTON
+                     Triggers form submission and JavaScript processing -->
                 <button type="submit" class="btn btn-primary">
                     Add Purchase
                 </button>
             </form>
         </div>
 
-        <!-- Recent Purchases -->
+        <!-- RECENT PURCHASES SECTION
+             Displays the most recent purchases in a list format -->
         <div class="recent-purchases">
+            <!-- SECTION HEADER
+                 Contains title and sync controls in a flex layout -->
             <div class="section-header">
                 <h2 class="section-title">Recent Purchases</h2>
-                <div class="sync-status">
-                    <span class="sync-indicator" id="syncIndicator"></span>
-                    <span id="syncText">Synced</span>
+                <!-- SYNC CONTROLS
+                     Manual sync button and status indicator -->
+                <div class="sync-controls">
+                    <!-- Small sync button with refresh icon -->
+                    <button class="sync-btn-small" id="syncButton" title="Sync now">
+                        <!-- Refresh icon image (you'll need to add this file) -->
+                        <img src="refresh-icon.png" alt="Refresh" class="refresh-icon-img">
+                    </button>
+                    <!-- Sync status with colored indicator dot -->
+                    <div class="sync-status">
+                        <span class="sync-indicator" id="syncIndicator"></span>
+                        <span id="syncText">Synced</span>
+                    </div>
                 </div>
             </div>
+            <!-- PURCHASES LIST
+                 JavaScript populates this div with recent purchases -->
             <div id="purchasesList">
                 <div class="empty-state">
                     No purchases yet. Add your first purchase above!
@@ -447,47 +780,47 @@
         </div>
     </div>
 
-    <!-- Bottom Navigation -->
-    <div class="bottom-nav">
-        <button class="btn btn-secondary" id="syncButton">
-            Sync Now
-        </button>
-        <button class="btn btn-secondary" id="exportButton">
-            Export Data
-        </button>
-    </div>
-
-    <!-- JavaScript -->
+    <!-- JAVASCRIPT APPLICATION CODE
+         All the interactive functionality is handled in JavaScript below -->
     <script>
         // ============================================
         // PURCHASE TRACKER APP - MAIN JAVASCRIPT
         // ============================================
         
-        // Configuration object - CUSTOMIZE THESE SETTINGS
+        /* CONFIGURATION OBJECT
+         * This object contains all the important settings for the app.
+         * By keeping them in one place, they're easy to find and modify.
+         * Think of this like a settings file for the application.
+         */
         const CONFIG = {
             // ⚠️ IMPORTANT: Replace with your actual Google Apps Script URL
             // Get this from: Google Apps Script → Deploy → New deployment → Web app URL
+            // This URL allows the app to send data to your Google Sheets
             GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby3fO9Q0Pl1np0UO46xrQ2LPt3ryB_AvN8sv_fhP0yhW48xYV1Pvvx19enykH5c8VmuYw/exec',
             
-            // Keys used to store data in browser's localStorage
-            // localStorage is like a permanent notepad that survives browser restarts
+            /* LOCAL STORAGE KEYS
+             * localStorage is like a mini-database in the browser that persists between sessions.
+             * These keys help organize different types of data we save locally.
+             */
             STORAGE_KEYS: {
-                PURCHASES: 'purchaseTracker_purchases',           // All purchase data
-                PENDING_SYNC: 'purchaseTracker_pendingSync',     // Purchases waiting to sync to Google Sheets
-                LAST_SYNC: 'purchaseTracker_lastSync',           // When we last successfully synced
-                SETTINGS: 'purchaseTracker_settings'             // User preferences (future use)
+                PURCHASES: 'purchaseTracker_purchases',        // All purchase data
+                PENDING_SYNC: 'purchaseTracker_pendingSync',   // Purchases waiting to sync to Google Sheets
+                LAST_SYNC: 'purchaseTracker_lastSync',         // When we last successfully synced
+                SETTINGS: 'purchaseTracker_settings'           // User preferences (for future features)
             },
             
-            // How many recent purchases to show in the list (prevents UI from getting too long)
-            RECENT_PURCHASES_LIMIT: 10,
+            // UI SETTINGS
+            RECENT_PURCHASES_LIMIT: 3,           // How many purchases to show in the recent list
+            AUTO_SYNC_INTERVAL: 5 * 60 * 1000,  // Auto-sync every 5 minutes (milliseconds)
             
-            // How often to automatically try syncing (5 minutes = 5 * 60 * 1000 milliseconds)
-            AUTO_SYNC_INTERVAL: 5 * 60 * 1000,
-            
-            // How to format dates when displaying them
+            /* DATE FORMATTING SETTINGS
+             * Controls how dates and times appear in the interface
+             * hour12: false gives us military time (24-hour format) like 14:30 instead of 2:30 PM
+             */
             DATE_FORMAT: {
-                dateStyle: 'short',  // Shows dates like "1/15/24"
-                timeStyle: 'short'   // Shows times like "2:30 PM"
+                dateStyle: 'short',   // Shows dates like "1/15/24"
+                timeStyle: 'short',   // Shows times like "14:30" (military time)
+                hour12: false         // Forces 24-hour format instead of AM/PM
             }
         };
 
@@ -497,34 +830,41 @@
         // ============================================
         
         /**
-         * Format currency values consistently throughout the app
-         * Takes a number like 12.5 and returns a string like "$12.50"
-         * @param {number} amount - The amount to format
-         * @returns {string} Formatted currency string
+         * FORMAT CURRENCY FOR DISPLAY
+         * Converts numbers to properly formatted currency strings
+         * Example: 12.5 becomes "$12.50"
+         * Uses the Intl.NumberFormat API for international number formatting
+         * 
+         * @param {number} amount - The amount to format (e.g., 12.5)
+         * @returns {string} Formatted currency string (e.g., "$12.50")
          */
         function formatCurrency(amount) {
             return new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: 'USD'
+                style: 'currency',    // Format as currency
+                currency: 'USD'       // Use US Dollar formatting
             }).format(amount);
         }
 
         /**
-         * Format date for display in the UI
-         * Takes an ISO date string and returns a human-readable format
-         * @param {string} dateString - ISO date string like "2024-01-15T14:30:00.000Z"
-         * @returns {string} Formatted date like "1/15/24, 2:30 PM"
+         * FORMAT DATE FOR DISPLAY
+         * Converts ISO date strings to human-readable format with military time
+         * Example: "2024-01-15T14:30:00.000Z" becomes "1/15/24, 14:30"
+         * 
+         * @param {string} dateString - ISO date string from JavaScript Date
+         * @returns {string} Formatted date string for display
          */
         function formatDate(dateString) {
             return new Date(dateString).toLocaleString('en-US', CONFIG.DATE_FORMAT);
         }
 
         /**
-         * Check if two dates are on the same calendar day
-         * Useful for calculating "today's" spending
+         * CHECK IF TWO DATES ARE ON THE SAME DAY
+         * Useful for calculating "today's" spending total
+         * Compares year, month, and day (ignores time)
+         * 
          * @param {Date} date1 - First date to compare
          * @param {Date} date2 - Second date to compare
-         * @returns {boolean} True if both dates are on the same day
+         * @returns {boolean} True if both dates are on the same calendar day
          */
         function isSameDay(date1, date2) {
             return date1.getFullYear() === date2.getFullYear() &&
@@ -533,33 +873,52 @@
         }
 
         /**
-         * Check if two dates are in the same month
-         * Useful for calculating "this month's" spending
+         * CHECK IF TWO DATES ARE IN THE SAME WEEK
+         * Useful for calculating "this week's" spending total
+         * Week starts on Sunday (JavaScript's default getDay() behavior)
+         * 
          * @param {Date} date1 - First date to compare
          * @param {Date} date2 - Second date to compare
-         * @returns {boolean} True if both dates are in the same month
+         * @returns {boolean} True if both dates are in the same week
          */
-        function isSameMonth(date1, date2) {
-            return date1.getFullYear() === date2.getFullYear() &&
-                   date1.getMonth() === date2.getMonth();
+        function isSameWeek(date1, date2) {
+            // Get the start of the week (Sunday) for both dates
+            const startOfWeek1 = new Date(date1);
+            const startOfWeek2 = new Date(date2);
+            
+            // Set both dates to the beginning of their respective weeks
+            // getDay() returns 0 for Sunday, 1 for Monday, etc.
+            // Subtracting getDay() moves us back to the Sunday of that week
+            startOfWeek1.setDate(date1.getDate() - date1.getDay());
+            startOfWeek2.setDate(date2.getDate() - date2.getDay());
+            
+            // Set time to beginning of day for accurate comparison
+            startOfWeek1.setHours(0, 0, 0, 0);
+            startOfWeek2.setHours(0, 0, 0, 0);
+            
+            // Compare if both dates have the same week start date
+            return startOfWeek1.getTime() === startOfWeek2.getTime();
         }
 
         /**
-         * Show a temporary message to the user
-         * @param {string} message - The message to display
-         * @param {string} type - 'success' or 'error' for styling
+         * SHOW TEMPORARY MESSAGE TO USER
+         * Displays success or error messages that automatically disappear
+         * Messages appear at the top of the page and fade away after 5 seconds
+         * 
+         * @param {string} message - The message text to display
+         * @param {string} type - 'success' or 'error' for different styling
          */
         function showMessage(message, type = 'success') {
             const messageContainer = document.getElementById('messageContainer');
             const messageDiv = document.createElement('div');
-            messageDiv.className = `${type}-message`;
+            messageDiv.className = `${type}-message`;  // Apply success-message or error-message CSS class
             messageDiv.textContent = message;
             
-            // Clear any existing messages
+            // Clear any existing messages first
             messageContainer.innerHTML = '';
             messageContainer.appendChild(messageDiv);
             
-            // Remove message after 5 seconds
+            // Automatically remove message after 5 seconds
             setTimeout(() => {
                 if (messageDiv.parentNode) {
                     messageDiv.parentNode.removeChild(messageDiv);
@@ -573,23 +932,29 @@
         // ============================================
         
         /**
-         * Storage manager for handling all local storage operations
-         * localStorage is like a filing cabinet that survives browser restarts
+         * STORAGE MANAGER OBJECT
+         * localStorage is like a mini-database that persists between browser sessions.
+         * This object provides methods to safely save and retrieve our app data.
+         * All data is stored as JSON strings and parsed back to JavaScript objects.
          */
         const Storage = {
             /**
-             * Get all purchases from local storage
-             * If no purchases exist, returns an empty array
+             * GET ALL PURCHASES FROM LOCAL STORAGE
+             * Retrieves the complete list of user's purchases
+             * If no data exists, returns an empty array (first time user)
+             * 
              * @returns {Array} Array of purchase objects
              */
             getPurchases() {
                 const data = localStorage.getItem(CONFIG.STORAGE_KEYS.PURCHASES);
-                return data ? JSON.parse(data) : [];
+                return data ? JSON.parse(data) : [];  // Parse JSON or return empty array
             },
 
             /**
-             * Save purchases to local storage
-             * This overwrites the entire purchases list
+             * SAVE PURCHASES TO LOCAL STORAGE
+             * Overwrites the entire purchases list with new data
+             * Converts JavaScript objects to JSON string for storage
+             * 
              * @param {Array} purchases - Array of purchase objects to save
              */
             savePurchases(purchases) {
@@ -597,20 +962,25 @@
             },
 
             /**
-             * Add a single purchase to the beginning of the list
-             * Newer purchases appear first in the UI
+             * ADD A SINGLE PURCHASE TO THE BEGINNING OF THE LIST
+             * New purchases appear first in the UI (most recent first)
+             * unshift() adds to the beginning, push() would add to the end
+             * 
              * @param {Object} purchase - Purchase object to add
+             * @returns {Object} The purchase that was added
              */
             addPurchase(purchase) {
                 const purchases = this.getPurchases();
-                purchases.unshift(purchase); // Add to beginning of array
+                purchases.unshift(purchase);  // Add to beginning of array
                 this.savePurchases(purchases);
                 return purchase;
             },
 
             /**
-             * Get purchases that haven't been synced to Google Sheets yet
+             * GET PURCHASES WAITING TO SYNC TO GOOGLE SHEETS
              * These are purchases made while offline or when sync failed
+             * They'll be sent to Google Sheets the next time sync runs
+             * 
              * @returns {Array} Array of unsynced purchases
              */
             getPendingSync() {
@@ -619,7 +989,9 @@
             },
 
             /**
-             * Save purchases that need to be synced
+             * SAVE PURCHASES THAT NEED TO BE SYNCED
+             * Maintains a queue of purchases waiting to go to Google Sheets
+             * 
              * @param {Array} purchases - Array of purchases waiting to sync
              */
             savePendingSync(purchases) {
@@ -627,22 +999,26 @@
             },
 
             /**
-             * Clear the pending sync list after successful sync
+             * CLEAR THE PENDING SYNC LIST
+             * Called after successful sync to Google Sheets
              */
             clearPendingSync() {
                 localStorage.setItem(CONFIG.STORAGE_KEYS.PENDING_SYNC, '[]');
             },
 
             /**
-             * Record when we last successfully synced to Google Sheets
+             * RECORD SUCCESSFUL SYNC TIMESTAMP
+             * Keeps track of when we last successfully sent data to Google Sheets
              */
             updateLastSync() {
                 localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
             },
 
             /**
-             * Get the timestamp of the last successful sync
-             * @returns {string|null} ISO date string or null if never synced
+             * GET LAST SUCCESSFUL SYNC TIME
+             * Returns when we last successfully synced, or null if never synced
+             * 
+             * @returns {string|null} ISO date string or null
              */
             getLastSync() {
                 return localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_SYNC);
@@ -650,51 +1026,103 @@
         };
 
         // ============================================
+        // CATEGORY BUTTON HANDLING
+        // NEW SECTION: Manages the interactive category button selection
+        // ============================================
+        
+        /**
+         * HANDLE CATEGORY BUTTON SELECTION
+         * This function manages which category button is selected and updates
+         * the hidden form field that the existing form submission code expects
+         */
+        function handleCategorySelection() {
+            // Get all category buttons using CSS selector
+            const categoryButtons = document.querySelectorAll('.category-btn');
+            
+            // Add click event listener to each button
+            categoryButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove 'selected' class from all buttons first
+                    // This ensures only one button can be selected at a time
+                    categoryButtons.forEach(btn => btn.classList.remove('selected'));
+                    
+                    // Add 'selected' class to the clicked button
+                    // This triggers the CSS styling for selected state
+                    this.classList.add('selected');
+                    
+                    // Update the hidden input field with the selected category
+                    // The data-category attribute contains the category name
+                    // This maintains compatibility with existing form processing
+                    const hiddenCategoryInput = document.getElementById('category');
+                    hiddenCategoryInput.value = this.getAttribute('data-category');
+                    
+                    // Remove any previous form validation errors since user made a selection
+                    hiddenCategoryInput.setCustomValidity('');
+                });
+            });
+        }
+
+        /**
+         * CLEAR CATEGORY SELECTION
+         * NEW FUNCTION: Removes selection from all category buttons
+         * Called after successful form submission to reset the form
+         */
+        function clearCategorySelection() {
+            const categoryButtons = document.querySelectorAll('.category-btn');
+            categoryButtons.forEach(btn => btn.classList.remove('selected'));
+            
+            // Clear the hidden input field as well
+            document.getElementById('category').value = '';
+        }
+
+        // ============================================
         // UI UPDATE FUNCTIONS
         // These functions update what the user sees on screen
         // ============================================
         
         /**
-         * Update the statistics display (Today and This Month totals)
-         * Calculates totals by looping through all purchases and filtering by date
+         * UPDATE STATISTICS DISPLAY
+         * Calculates and displays today's and this week's spending totals
+         * Loops through all purchases and filters by date to calculate totals
          */
         function updateStats() {
             const purchases = Storage.getPurchases();
             const today = new Date();
             
-            let todayTotal = 0;
-            let monthTotal = 0;
+            let todayTotal = 0;   // Running total for today's purchases
+            let weekTotal = 0;    // Running total for this week's purchases
             
-            // Loop through each purchase and add to appropriate total
+            // Loop through each purchase and add to appropriate totals
             purchases.forEach(purchase => {
                 const purchaseDate = new Date(purchase.timestamp);
-                const amount = parseFloat(purchase.amount);
+                const amount = parseFloat(purchase.amount);  // Ensure we have a number
                 
                 // Add to today's total if purchase was made today
                 if (isSameDay(purchaseDate, today)) {
                     todayTotal += amount;
                 }
                 
-                // Add to month's total if purchase was made this month
-                if (isSameMonth(purchaseDate, today)) {
-                    monthTotal += amount;
+                // Add to week's total if purchase was made this week
+                if (isSameWeek(purchaseDate, today)) {
+                    weekTotal += amount;
                 }
             });
             
             // Update the numbers displayed on screen
             document.getElementById('todayTotal').textContent = formatCurrency(todayTotal);
-            document.getElementById('monthTotal').textContent = formatCurrency(monthTotal);
+            document.getElementById('weekTotal').textContent = formatCurrency(weekTotal);
         }
 
         /**
-         * Update the recent purchases list display
-         * Shows the most recent purchases in a scrollable list
+         * UPDATE RECENT PURCHASES LIST
+         * Displays the most recent purchases in the UI
+         * Limits the number shown to keep the interface manageable
          */
         function updatePurchasesList() {
             const purchases = Storage.getPurchases();
             const listContainer = document.getElementById('purchasesList');
             
-            // If no purchases exist, show a helpful message
+            // If no purchases exist, show an encouraging message
             if (purchases.length === 0) {
                 listContainer.innerHTML = `
                     <div class="empty-state">
@@ -704,10 +1132,12 @@
                 return;
             }
             
-            // Show only the most recent purchases to keep the UI manageable
+            // Show only the most recent purchases (limited by config)
             const recentPurchases = purchases.slice(0, CONFIG.RECENT_PURCHASES_LIMIT);
             
-            // Create HTML for each purchase and join them together
+            // Create HTML for each purchase using template literals
+            // map() transforms each purchase object into an HTML string
+            // join('') combines all HTML strings into one
             listContainer.innerHTML = recentPurchases.map(purchase => `
                 <div class="purchase-item">
                     <div class="purchase-info">
@@ -724,32 +1154,35 @@
         }
 
         /**
-         * Update the sync status indicator
-         * Shows users whether their data is synced, pending, or has errors
-         * @param {string} status - 'synced', 'pending', 'syncing', 'error'
+         * UPDATE SYNC STATUS INDICATOR
+         * Shows users the current state of data synchronization
+         * Uses colored dots and text to indicate sync status
+         * 
+         * @param {string} status - 'synced', 'pending', 'syncing', or 'error'
          * @param {string} text - Text to display next to the indicator
          */
         function updateSyncStatus(status, text) {
             const indicator = document.getElementById('syncIndicator');
             const syncText = document.getElementById('syncText');
             
-            // Reset indicator classes
+            // Reset indicator classes (remove any existing status classes)
             indicator.className = 'sync-indicator';
             
-            // Apply appropriate styling based on status
+            // Apply appropriate styling based on current status
             switch(status) {
                 case 'pending':
-                    indicator.classList.add('pending');
+                    indicator.classList.add('pending');  // Orange/yellow dot
                     break;
                 case 'error':
-                    indicator.classList.add('error');
+                    indicator.classList.add('error');    // Red dot
                     break;
                 case 'syncing':
-                    // Show a spinning animation while syncing
+                    // Show spinning animation during sync process
                     syncText.innerHTML = '<span class="loading"></span> Syncing...';
-                    return;
+                    return;  // Exit early, don't update text below
             }
             
+            // Update the status text (for non-syncing states)
             syncText.textContent = text;
         }
 
@@ -759,46 +1192,59 @@
         // ============================================
         
         /**
-         * Handle purchase form submission
-         * This runs when the user clicks "Add Purchase"
+         * HANDLE PURCHASE FORM SUBMISSION
+         * This function runs when the user clicks "Add Purchase"
+         * It processes the form data and saves the purchase
+         * MODIFIED: Now works with category buttons instead of dropdown
          */
         document.getElementById('purchaseForm').addEventListener('submit', async (e) => {
-            e.preventDefault(); // Prevent the default form submission behavior
+            e.preventDefault(); // Prevent the browser's default form submission behavior
             
-            // Extract data from the form
+            // CATEGORY VALIDATION
+            // Check if user selected a category before processing form
+            const selectedCategory = document.getElementById('category').value;
+            if (!selectedCategory) {
+                showMessage('Please select a category', 'error');
+                return; // Stop form submission if no category selected
+            }
+            
+            // Extract data from the form using FormData API
             const formData = new FormData(e.target);
+            
+            // Create a purchase object with all the necessary data
             const purchase = {
-                id: Date.now().toString(), // Simple unique ID using timestamp
-                description: formData.get('description'),
-                amount: parseFloat(formData.get('amount')),
-                category: formData.get('category'),
-                timestamp: new Date().toISOString(), // Current time in ISO format
-                synced: false // Mark as not yet synced to Google Sheets
+                id: Date.now().toString(),           // Simple unique ID using current timestamp
+                description: formData.get('description'),  // What the user bought
+                amount: parseFloat(formData.get('amount')), // Cost (converted to number)
+                category: selectedCategory,                 // Selected category from button
+                timestamp: new Date().toISOString(),       // Current time in ISO format
+                synced: false                               // Mark as not yet synced to Google Sheets
             };
             
-            // Save the purchase locally first (for offline capability)
+            // Save the purchase locally first (enables offline functionality)
             Storage.addPurchase(purchase);
             
-            // Add to the list of purchases that need to be synced
+            // Add to the queue of purchases that need to be synced
             const pending = Storage.getPendingSync();
             pending.push(purchase);
             Storage.savePendingSync(pending);
             
             // Update the user interface immediately
-            updateStats();
-            updatePurchasesList();
-            updateSyncStatus('pending', `${pending.length} pending`);
+            updateStats();          // Recalculate today/week totals
+            updatePurchasesList();  // Add to recent purchases list
+            updateSyncStatus('pending', `${pending.length} pending`);  // Show pending count
             
-            // Clear the form so user can quickly add another purchase
+            // Reset the form for the next purchase entry
             e.target.reset();
+            clearCategorySelection();  // NEW: Clear category button selection
             
-            // Put cursor back in the description field for quick entry
+            // Put cursor back in description field for quick consecutive entries
             document.getElementById('description').focus();
             
-            // Show success message
+            // Show success feedback to the user
             showMessage('Purchase added successfully!', 'success');
             
-            // Try to sync if we're online (with a small delay to allow for multiple quick entries)
+            // Try to sync if we're online (small delay allows for multiple quick entries)
             if (navigator.onLine) {
                 setTimeout(() => syncPurchases(), 2000);
             }
@@ -810,92 +1256,89 @@
         // ============================================
         
         /**
-         * Sync purchases with Google Sheets
-         * This is the main function that sends data to your Google Apps Script
+         * SYNC PURCHASES WITH GOOGLE SHEETS
+         * This is the main function that sends local data to your Google Apps Script
          * 
-         * CORS EXPLANATION:
-         * Google Apps Script doesn't allow regular JavaScript fetch requests from browsers
-         * due to CORS (Cross-Origin Resource Sharing) security restrictions. We use 'no-cors'
-         * mode which means we can't read the response, but the data still gets sent successfully.
+         * IMPORTANT CORS EXPLANATION:
+         * Google Apps Script has security restrictions that prevent normal browser requests.
+         * We use 'no-cors' mode which means we can send data but can't read the response.
+         * This is a limitation of browser security, but the data still gets processed successfully.
          */
         async function syncPurchases() {
-            // Check if we have a valid Google Script URL configured
+            // Verify that Google Apps Script URL is configured
             if (!CONFIG.GOOGLE_SCRIPT_URL.startsWith('https://script.google.com/')) {
                 updateSyncStatus('error', 'Sync not configured');
-                console.warn('Google Apps Script URL not configured');
+                console.warn('Google Apps Script URL not configured properly');
                 return;
             }
             
             // Get purchases that need to be synced
             const pending = Storage.getPendingSync();
             
-            // If nothing to sync, we're done
+            // If nothing to sync, we're already up to date
             if (pending.length === 0) {
                 updateSyncStatus('synced', 'All synced');
                 return;
             }
             
-            // Show syncing status
+            // Show syncing status with spinning animation
             updateSyncStatus('syncing', 'Syncing...');
             
             try {
-                console.log('Syncing purchases:', pending);
+                console.log('Starting sync process with purchases:', pending);
                 
+                // Prepare data in the format expected by Google Apps Script
                 const requestData = {
-                    action: 'addPurchases',
-                    purchases: pending
+                    action: 'addPurchases',  // Tells the script what operation to perform
+                    purchases: pending       // The actual purchase data to save
                 };
                 
-                // Send purchases to Google Sheets via our Apps Script
-                // IMPORTANT: We use 'no-cors' mode because Google Apps Script doesn't
-                // support CORS for browser requests. This means we can't read the response,
-                // but the data still gets sent and processed successfully.
+                // Send data to Google Sheets via our Apps Script
+                // IMPORTANT: 'no-cors' mode is required for Google Apps Script
+                // This means we can't read the response, but data still gets sent successfully
                 const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors', // Required for Google Apps Script
+                    method: 'POST',                    // Use POST to send data
+                    mode: 'no-cors',                   // Required for Google Apps Script
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json',  // Tell server we're sending JSON
                     },
-                    body: JSON.stringify(requestData)
+                    body: JSON.stringify(requestData)  // Convert data to JSON string
                 });
                 
-                // With 'no-cors' mode, we can't read the response or check status codes
-                // But Google Apps Script will still process our request successfully
-                console.log('Request sent to Google Apps Script');
+                console.log('Request sent to Google Apps Script successfully');
                 
-                // Since we can't verify the response, we assume success
-                // In a real production app, you might want to add additional verification
-                // like checking if new data appears in your Google Sheet
+                // Since we can't read the response due to CORS restrictions,
+                // we assume the request was successful if it didn't throw an error
                 
-                // Mark all pending purchases as synced in our local storage
+                // Mark all pending purchases as synced in local storage
                 const allPurchases = Storage.getPurchases();
                 allPurchases.forEach(purchase => {
+                    // Find purchases that were just synced and mark them
                     if (pending.find(p => p.id === purchase.id)) {
                         purchase.synced = true;
                     }
                 });
                 Storage.savePurchases(allPurchases);
                 
-                // Clear the pending sync list and record successful sync time
+                // Clear the pending sync queue and record successful sync time
                 Storage.clearPendingSync();
                 Storage.updateLastSync();
                 
-                // Update UI to show success
+                // Update UI to show successful sync
                 updateSyncStatus('synced', 'All synced');
                 showMessage('Purchases synced to Google Sheets!', 'success');
                 
-                console.log('Sync completed successfully');
+                console.log('Sync process completed successfully');
                 
             } catch (error) {
-                console.error('Sync error:', error);
+                console.error('Sync error occurred:', error);
                 
-                // If the fetch fails completely, try the form submission method as a fallback
-                // This can sometimes work when fetch doesn't due to browser security settings
-                console.log('Trying form submission fallback...');
+                // If the main sync method fails, try the form submission fallback
+                console.log('Attempting form submission fallback method...');
                 try {
                     await syncWithFormSubmission(pending);
                 } catch (formError) {
-                    console.error('Form submission also failed:', formError);
+                    console.error('Form submission fallback also failed:', formError);
                     updateSyncStatus('error', 'Sync failed');
                     showMessage('Sync failed. Will retry when online.', 'error');
                 }
@@ -903,45 +1346,45 @@
         }
 
         /**
-         * Alternative sync method using form submission to bypass CORS
-         * This creates an invisible form and submits it to Google Apps Script
-         * It's a fallback method when the regular fetch request fails
+         * ALTERNATIVE SYNC METHOD USING FORM SUBMISSION
+         * Creates an invisible form and submits it to bypass CORS restrictions
+         * This is a fallback method when the regular fetch request fails
+         * 
+         * @param {Array} purchases - Array of purchases to sync
          */
         async function syncWithFormSubmission(purchases) {
-            console.log('Using form submission method for sync');
+            console.log('Using form submission method as fallback');
             
             return new Promise((resolve) => {
-                // Create a hidden form element
+                // Create a hidden form element dynamically
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = CONFIG.GOOGLE_SCRIPT_URL;
-                form.target = '_blank'; // Open result in new tab (prevents page navigation)
-                form.style.display = 'none'; // Make it invisible
+                form.target = '_blank';           // Open result in new tab (prevents page navigation)
+                form.style.display = 'none';     // Make form invisible
                 
-                // Add the purchase data as a hidden form field
-                // Google Apps Script can read form data even when CORS blocks regular requests
+                // Create a hidden input field with our purchase data
                 const input = document.createElement('input');
                 input.type = 'hidden';
-                input.name = 'data'; // This matches what our Google Apps Script expects
+                input.name = 'data';             // Field name that Google Apps Script expects
                 input.value = JSON.stringify({
                     action: 'addPurchases',
                     purchases: purchases
                 });
                 
+                // Assemble and submit the form
                 form.appendChild(input);
                 document.body.appendChild(form);
+                form.submit();  // This sends the data to Google Apps Script
                 
-                // Submit the form (this will send data to Google Apps Script)
-                form.submit();
-                
-                // Clean up - remove the form after a short delay
+                // Clean up the temporary form after a short delay
                 setTimeout(() => {
                     if (document.body.contains(form)) {
                         document.body.removeChild(form);
                     }
                 }, 1000);
                 
-                // Since we can't read the response from form submission either,
+                // Since we can't verify the response from form submission either,
                 // we assume success after a reasonable delay
                 setTimeout(() => {
                     // Mark purchases as synced in local storage
@@ -955,6 +1398,7 @@
                     Storage.clearPendingSync();
                     Storage.updateLastSync();
                     
+                    // Update UI with cautionary success message
                     updateSyncStatus('synced', 'Synced (check sheet)');
                     showMessage('Sync attempted via form. Check your Google Sheet to verify.', 'success');
                     resolve();
@@ -968,44 +1412,50 @@
         // ============================================
         
         /**
-         * Export purchases as CSV file
-         * Creates a downloadable spreadsheet file
+         * EXPORT PURCHASES AS CSV FILE
+         * Creates a downloadable spreadsheet file with all purchase data
+         * CSV (Comma Separated Values) can be opened in Excel, Google Sheets, etc.
          */
         function exportPurchases() {
             const purchases = Storage.getPurchases();
             
+            // Check if there's any data to export
             if (purchases.length === 0) {
                 showMessage('No purchases to export', 'error');
                 return;
             }
             
-            // Create CSV content
-            // CSV = Comma Separated Values (a spreadsheet format)
+            // Define CSV column headers
             const headers = ['Date', 'Time', 'Description', 'Amount', 'Category'];
+            
+            // Convert each purchase to a row of CSV data
             const rows = purchases.map(purchase => {
                 const date = new Date(purchase.timestamp);
                 return [
-                    date.toLocaleDateString(),
-                    date.toLocaleTimeString(),
-                    purchase.description,
-                    purchase.amount,
-                    purchase.category
+                    date.toLocaleDateString(),                    // Date in local format
+                    date.toLocaleTimeString('en-US', { hour12: false }), // Military time format
+                    purchase.description,                         // What was bought
+                    purchase.amount,                             // Cost
+                    purchase.category                            // Category
                 ];
             });
             
             // Combine headers and data into CSV format
+            // Each cell is wrapped in quotes to handle commas in descriptions
             const csvContent = [
-                headers.join(','),
-                ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-            ].join('\n');
+                headers.join(','),  // Header row
+                ...rows.map(row => row.map(cell => `"${cell}"`).join(','))  // Data rows
+            ].join('\n');  // Join rows with newlines
             
-            // Create a download link and trigger it
+            // Create a downloadable file and trigger download
             const blob = new Blob([csvContent], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `purchases_${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
+            a.download = `purchases_${new Date().toISOString().split('T')[0]}.csv`;  // Filename with date
+            a.click();  // Trigger download
+            
+            // Clean up the temporary URL
             URL.revokeObjectURL(url);
             
             showMessage('Export downloaded!', 'success');
@@ -1016,22 +1466,29 @@
         // These functions respond to user actions and system events
         // ============================================
         
-        // Sync button click
+        // SYNC BUTTON CLICK HANDLER
+        // Manual sync when user clicks the sync button
         document.getElementById('syncButton').addEventListener('click', syncPurchases);
         
-        // Export button click
-        document.getElementById('exportButton').addEventListener('click', exportPurchases);
+        // ONLINE/OFFLINE DETECTION
+        // These events automatically detect when internet connection changes
         
-        // Online/Offline detection
-        // These events fire when the user's internet connection changes
+        /**
+         * HANDLE COMING BACK ONLINE
+         * Automatically sync when internet connection is restored
+         */
         window.addEventListener('online', () => {
-            document.body.classList.remove('offline');
+            document.body.classList.remove('offline');  // Hide offline banner
             showMessage('Back online! Syncing purchases...', 'success');
-            syncPurchases(); // Auto-sync when coming back online
+            syncPurchases();  // Attempt to sync any pending purchases
         });
         
+        /**
+         * HANDLE GOING OFFLINE
+         * Show warning banner when internet connection is lost
+         */
         window.addEventListener('offline', () => {
-            document.body.classList.add('offline');
+            document.body.classList.add('offline');  // Show offline banner
             showMessage('You\'re offline. Purchases will sync when reconnected.', 'error');
         });
         
@@ -1040,39 +1497,48 @@
         // This enables the app to work offline (Progressive Web App feature)
         // ============================================
         
-        // Uncomment these lines when you're ready to enable offline functionality
-        // Service workers cache your app files so it works without internet
+        /* SERVICE WORKER SETUP (CURRENTLY DISABLED)
+         * Uncomment these lines when you're ready to enable full offline functionality.
+         * Service workers cache your app files so it works without internet connection.
+         * This is an advanced feature that requires additional setup.
+         */
         
         // if ('serviceWorker' in navigator) {
         //     window.addEventListener('load', () => {
         //         navigator.serviceWorker.register('sw.js')
-        //             .then(reg => console.log('Service Worker registered'))
+        //             .then(reg => console.log('Service Worker registered successfully'))
         //             .catch(err => console.error('Service Worker registration failed:', err));
         //     });
         // }
         
         // ============================================
-        // INITIALIZATION
+        // APPLICATION INITIALIZATION
         // This runs when the page first loads
         // ============================================
         
         /**
-         * Initialize the app on page load
+         * INITIALIZE THE APPLICATION
          * Sets up the initial state and starts background processes
+         * This is the main entry point that gets everything running
+         * MODIFIED: Now includes category button setup
          */
         function init() {
-            console.log('Initializing Purchase Tracker...');
+            console.log('Initializing Purchase Tracker application...');
             
-            // Load and display existing data
-            updateStats();
-            updatePurchasesList();
+            // NEW: Set up category button event handlers
+            // This must be called before the form becomes interactive
+            handleCategorySelection();
             
-            // Check if we're online or offline
+            // Load and display existing data from localStorage
+            updateStats();          // Calculate and show today/week totals
+            updatePurchasesList();  // Display recent purchases
+            
+            // Check initial online/offline state
             if (!navigator.onLine) {
                 document.body.classList.add('offline');
             }
             
-            // Check if we have purchases waiting to sync
+            // Check if we have purchases waiting to sync and update status accordingly
             const pending = Storage.getPendingSync();
             if (pending.length > 0) {
                 updateSyncStatus('pending', `${pending.length} pending`);
@@ -1088,15 +1554,15 @@
                 }
             }, CONFIG.AUTO_SYNC_INTERVAL);
             
-            // Focus on description field so user can start typing immediately
-            // This improves the user experience for quick data entry
+            // Focus on description field for immediate data entry
+            // This improves user experience by letting them start typing right away
             document.getElementById('description').focus();
             
             console.log('Purchase Tracker initialized successfully');
         }
         
-        // Start the app when the page loads
-        // This is the entry point that kicks everything off
+        // START THE APPLICATION
+        // This line kicks off the entire app when the page loads
         init();
     </script>
 </body>
