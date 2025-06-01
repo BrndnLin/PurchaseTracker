@@ -1497,19 +1497,18 @@
         // This enables the app to work offline (Progressive Web App feature)
         // ============================================
         
-        /* SERVICE WORKER SETUP (CURRENTLY DISABLED)
-         * Uncomment these lines when you're ready to enable full offline functionality.
+        /* SERVICE WORKER SETUP
          * Service workers cache your app files so it works without internet connection.
          * This is an advanced feature that requires additional setup.
          */
         
-        // if ('serviceWorker' in navigator) {
-        //     window.addEventListener('load', () => {
-        //         navigator.serviceWorker.register('sw.js')
-        //             .then(reg => console.log('Service Worker registered successfully'))
-        //             .catch(err => console.error('Service Worker registration failed:', err));
-        //     });
-        // }
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registered successfully'))
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            });
+        }
         
         // ============================================
         // APPLICATION INITIALIZATION
