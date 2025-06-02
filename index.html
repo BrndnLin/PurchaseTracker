@@ -471,12 +471,16 @@
         .sync-status {
             display: flex;                        /* Horizontal layout */
             align-items: center;                  /* Vertically center */
-            justify-content: center;     
             gap: var(--spacing-sm);              /* Gap between dot and text */
             padding: var(--spacing-sm) var(--spacing-md);  /* Comfortable padding */
             background: var(--background);       /* Subtle background difference */
             border-radius: var(--radius-sm);     /* Rounded corners */
             font-size: 14px;                     /* Readable text size */
+        }
+
+        #syncText {
+            text-align: left;                   /* Center the text */
+            line-height: 1.2;                     /* Tighter line spacing */
         }
 
         /* SYNC STATUS DOT
@@ -1187,7 +1191,7 @@
             }
             
             // Update the status text (for non-syncing states)
-            syncText.textContent = text;
+            syncText.innerHTML = text.replace(' ', '<br>');  // Replace first space with line break
         }
 
         // ============================================
