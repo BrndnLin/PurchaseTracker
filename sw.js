@@ -4,6 +4,11 @@
 // This service worker enables offline functionality by caching
 // essential files and providing offline fallbacks.
 //
+// UPDATED: Now uses "Network First" strategy for development-friendly updates
+// - Always tries to get fresh content from the server first
+// - Only falls back to cache when offline
+// - Automatically updates cache with fresh content
+//
 // A service worker is a script that runs in the background, separate
 // from your main web page. It acts like a proxy between your app and
 // the network, allowing you to:
@@ -16,7 +21,7 @@
 // This is like a "version number" for your cache. When you change
 // this value, it forces the service worker to create a new cache
 // and delete the old one, ensuring users get your latest files.
-const CACHE_VERSION = 'purchase-tracker-v2';
+const CACHE_VERSION = 'purchase-tracker-smart-v1';
 
 // Files to cache for offline use
 // These are the essential files your app needs to work offline.
@@ -40,9 +45,9 @@ const STATIC_CACHE_FILES = [
 self.addEventListener('install', (event) => {
     console.log('Service Worker: Installing...');
     
-    // skipWaiting() forces this new service worker to become active immediately
+    // UPDATED: skipWaiting() forces this new service worker to become active immediately
     // instead of waiting for all tabs to close. This ensures users get
-    // updates faster, but can sometimes cause issues if not handled carefully.
+    // updates faster and is more development-friendly.
     self.skipWaiting();
     
     // waitUntil() tells the browser "don't finish installing until this promise resolves"
@@ -85,20 +90,28 @@ self.addEventListener('activate', (event) => {
                 })
             );
         }).then(() => {
-            // claim() makes this service worker take control of all existing pages immediately
+            // UPDATED: claim() makes this service worker take control of all existing pages immediately
             // Without this, the service worker would only control new page loads
+            // This ensures updates take effect right away
             return self.clients.claim();
         })
     );
 });
 
 // ============================================
-// FETCH EVENT - Serve cached files when offline
+// FETCH EVENT - NETWORK FIRST STRATEGY (UPDATED)
 // ============================================
-// The 'fetch' event fires every time your app makes a network request
-// (loading pages, images, API calls, etc.). This is where the magic happens -
-// we can intercept these requests and serve cached files instead of
-// going to the network, enabling offline functionality.
+// MAJOR CHANGE: This now uses "Network First" instead of "Cache First"
+// 
+// NETWORK FIRST STRATEGY:
+// 1. Always try to get fresh content from the server first
+// 2. If successful, cache the new version AND return it to the user
+// 3. If network fails (offline), fall back to cached version
+//
+// This is much more development-friendly because:
+// - Users always get the latest version when online
+// - Developers don't fight with aggressive caching
+// - Offline functionality is preserved when needed
 
 self.addEventListener('fetch', (event) => {
     // Parse the URL to understand what's being requested
@@ -121,47 +134,44 @@ self.addEventListener('fetch', (event) => {
     // respondWith() lets us provide a custom response to this request
     // instead of letting it go to the network normally
     event.respondWith(
-        // "Cache First" strategy: Try to serve from cache, fall back to network
-        // This makes the app fast (cached files load instantly) but still
-        // gets fresh content when needed
-        caches.match(event.request)
-            .then(cachedResponse => {
-                // If we found this file in our cache, return it immediately
-                if (cachedResponse) {
-                    console.log('Service Worker: Serving from cache:', event.request.url);
-                    return cachedResponse;
+        // UPDATED: "Network First" strategy - Try network first, fall back to cache
+        fetch(event.request)
+            .then(response => {
+                // Network request succeeded! 
+                console.log('Service Worker: Got fresh content from network:', event.request.url);
+                
+                // Only cache successful responses from our own domain
+                // - response exists
+                // - status is 200 (OK)
+                // - type is 'basic' (same-origin request)
+                if (response && response.status === 200 && response.type === 'basic') {
+                    // Clone the response because we need to use it twice:
+                    // once to return to the app, once to store in cache
+                    // Responses can only be read once, so we need a copy
+                    const responseToCache = response.clone();
+                    
+                    // Store this fresh content in cache for offline use
+                    caches.open(CACHE_VERSION)
+                        .then(cache => {
+                            cache.put(event.request, responseToCache);
+                            console.log('Service Worker: Updated cache with fresh content:', event.request.url);
+                        });
                 }
                 
-                // File not in cache, so fetch it from the network
-                console.log('Service Worker: Fetching from network:', event.request.url);
-                return fetch(event.request)
-                    .then(response => {
-                        // Only cache successful responses
-                        // - response exists
-                        // - status is 200 (OK)
-                        // - type is 'basic' (same-origin request)
-                        if (!response || response.status !== 200 || response.type !== 'basic') {
-                            return response;
+                // Return the fresh response to the app
+                return response;
+            })
+            .catch(() => {
+                // Network request failed (user is offline or server is down)
+                console.log('Service Worker: Network failed, trying cache for:', event.request.url);
+                
+                // Fall back to cached version
+                return caches.match(event.request)
+                    .then(cachedResponse => {
+                        if (cachedResponse) {
+                            console.log('Service Worker: Serving from cache:', event.request.url);
+                            return cachedResponse;
                         }
-                        
-                        // Clone the response because we need to use it twice:
-                        // once to return to the app, once to store in cache
-                        // Responses can only be read once, so we need a copy
-                        const responseToCache = response.clone();
-                        
-                        // Store this file in cache for future requests
-                        caches.open(CACHE_VERSION)
-                            .then(cache => {
-                                cache.put(event.request, responseToCache);
-                                console.log('Service Worker: Cached new file:', event.request.url);
-                            });
-                        
-                        // Return the original response to the app
-                        return response;
-                    })
-                    .catch(() => {
-                        // Network request failed (user is offline)
-                        console.log('Service Worker: Network failed for:', event.request.url);
                         
                         // For navigation requests (loading pages), serve the main page
                         // This ensures users can still access the app when offline
@@ -229,7 +239,7 @@ self.addEventListener('push', (event) => {
 });
 
 // ============================================
-// MESSAGE EVENT - Handle messages from the app
+// MESSAGE EVENT - Handle messages from the app (UPDATED)
 // ============================================
 // This allows your main app to communicate with the service worker.
 // Your app can send messages to trigger specific actions like
@@ -244,6 +254,13 @@ self.addEventListener('message', (event) => {
             // Force this service worker to become active immediately
             // Useful when you want to apply updates right away
             console.log('Service Worker: Skipping waiting phase');
+            self.skipWaiting();
+            break;
+            
+        case 'FORCE_UPDATE':
+            // NEW: Force immediate activation and reload
+            // This is used by the development-friendly update system
+            console.log('Service Worker: Force update requested');
             self.skipWaiting();
             break;
             
@@ -292,3 +309,4 @@ self.addEventListener('unhandledrejection', (event) => {
 console.log('📦 Service Worker: Script loaded and ready');
 console.log('📦 Cache version:', CACHE_VERSION);
 console.log('📦 Files to cache:', STATIC_CACHE_FILES);
+console.log('📦 Strategy: Network First (development-friendly)');

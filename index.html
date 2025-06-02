@@ -793,6 +793,9 @@
          * Think of this like a settings file for the application.
          */
         const CONFIG = {
+            // For caching purposes
+            DEVELOPMENT_MODE: false,
+
             // ⚠️ IMPORTANT: Replace with your actual Google Apps Script URL
             // Get this from: Google Apps Script → Deploy → New deployment → Web app URL
             // This URL allows the app to send data to your Google Sheets
@@ -1502,16 +1505,106 @@
          * This is an advanced feature that requires additional setup.
          */
         
-        if ('serviceWorker' in navigator) {
+        if ('serviceWorker' in navigator && !CONFIG.DEVELOPMENT_MODE) {
+            // PRODUCTION MODE: Register service worker for full PWA functionality
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=' + Date.now())
+                navigator.serviceWorker.register('sw.js')
                     .then(reg => {
-                        console.log('Service Worker registered successfully');
-                        // Force update check
-                        reg.update();
+                        console.log('🚀 Service Worker registered successfully (Production Mode)');
+                        
+                        // Check for updates every minute in production
+                        setInterval(() => {
+                            reg.update();
+                            console.log('🔄 Checking for app updates...');
+                        }, 60000);
+                        
+                        // Listen for service worker updates
+                        reg.addEventListener('updatefound', () => {
+                            console.log('📦 New app version found, installing...');
+                            const newWorker = reg.installing;
+                            
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('✅ New app version ready! Refresh to update.');
+                                    showMessage('New app version available! Refresh to update.', 'success');
+                                }
+                            });
+                        });
                     })
-                    .catch(err => console.error('Service Worker registration failed:', err));
+                    .catch(err => console.error('❌ Service Worker registration failed:', err));
             });
+            
+        } else if (CONFIG.DEVELOPMENT_MODE) {
+            // DEVELOPMENT MODE: Service worker disabled for easier development
+            console.log('🚧 DEVELOPMENT MODE: Service Worker disabled for easier testing');
+            console.log('💡 This means:');
+            console.log('   - No caching (always fresh content)');
+            console.log('   - No offline functionality');
+            console.log('   - Easier debugging and updates');
+            console.log('   - Set CONFIG.DEVELOPMENT_MODE = false for production');
+            
+            // Add helpful development tools to the global scope
+            window.devHelpers = {
+                // Clear all local storage data
+                clearStorage: () => {
+                    localStorage.clear();
+                    console.log('🗑️ Local storage cleared');
+                    updateStats();
+                    updatePurchasesList();
+                    showMessage('Local storage cleared!', 'success');
+                },
+                
+                // Export all current data for debugging
+                exportData: () => {
+                    const data = {
+                        purchases: Storage.getPurchases(),
+                        pending: Storage.getPendingSync(),
+                        lastSync: Storage.getLastSync(),
+                        timestamp: new Date().toISOString()
+                    };
+                    console.log('📊 Current app data:', data);
+                    return data;
+                },
+                
+                // Force a sync attempt
+                forceSync: () => {
+                    console.log('🔄 Forcing sync attempt...');
+                    syncPurchases();
+                },
+                
+                // Simulate offline mode for testing
+                simulateOffline: () => {
+                    document.body.classList.add('offline');
+                    showMessage('Simulating offline mode', 'error');
+                    console.log('📱 Offline mode simulated. Call devHelpers.simulateOnline() to restore.');
+                },
+                
+                // Restore online mode
+                simulateOnline: () => {
+                    document.body.classList.remove('offline');
+                    showMessage('Online mode restored', 'success');
+                    console.log('🌐 Online mode restored');
+                },
+                
+                // Show current configuration
+                showConfig: () => {
+                    console.log('⚙️ Current configuration:', CONFIG);
+                    return CONFIG;
+                }
+            };
+            
+            // Log available development helpers
+            console.log('🛠️ Development helpers available:');
+            console.log('   devHelpers.clearStorage()    - Clear all data');
+            console.log('   devHelpers.exportData()      - Export current data');
+            console.log('   devHelpers.forceSync()       - Force sync attempt');
+            console.log('   devHelpers.simulateOffline() - Test offline mode');
+            console.log('   devHelpers.simulateOnline()  - Restore online mode');
+            console.log('   devHelpers.showConfig()      - Show configuration');
+            
+        } else {
+            // Fallback: Service worker not supported in this browser
+            console.log('⚠️ Service Worker not supported in this browser');
         }
         
         // ============================================
