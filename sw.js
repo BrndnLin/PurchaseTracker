@@ -16,7 +16,7 @@
 // This is like a "version number" for your cache. When you change
 // this value, it forces the service worker to create a new cache
 // and delete the old one, ensuring users get your latest files.
-const CACHE_VERSION = 'purchase-tracker-v1';
+const CACHE_VERSION = 'purchase-tracker-v2';
 
 // Files to cache for offline use
 // These are the essential files your app needs to work offline.
