@@ -124,8 +124,8 @@
             background: var(--surface);          /* Use surface color for contrast with main background */
             padding: var(--spacing-lg) var(--spacing-md);  /* More vertical padding for visual importance */
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);  /* Subtle shadow to separate from content */
-            position: sticky;                     /* Header stays at top when scrolling */
-            top: 0;                              /* Stick to very top of viewport */
+            position: static;                     /* Normal positioning */
+            top: 0;                              /* Stick to very top of viewport; not necessary if static */
             z-index: 100;                        /* Ensure header appears above other content */
         }
 
@@ -471,6 +471,7 @@
         .sync-status {
             display: flex;                        /* Horizontal layout */
             align-items: center;                  /* Vertically center */
+            justify-content: center;     
             gap: var(--spacing-sm);              /* Gap between dot and text */
             padding: var(--spacing-sm) var(--spacing-md);  /* Comfortable padding */
             background: var(--background);       /* Subtle background difference */
