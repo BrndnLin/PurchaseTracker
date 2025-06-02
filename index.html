@@ -1240,7 +1240,7 @@
             // Update the user interface immediately
             updateStats();          // Recalculate today/week totals
             updatePurchasesList();  // Add to recent purchases list
-            updateSyncStatus('pending', `${pending.length} pending`);  // Show pending count
+            updateSyncStatus('pending', `Pending`);  // Show pending count
             
             // Reset the form for the next purchase entry
             e.target.reset();
@@ -1333,7 +1333,7 @@
                 Storage.updateLastSync();
                 
                 // Update UI to show successful sync
-                updateSyncStatus('synced', 'All synced');
+                updateSyncStatus('synced', 'Synced');
                 showMessage('Purchases synced to Google Sheets!', 'success');
                 
                 console.log('Sync process completed successfully');
@@ -1642,9 +1642,9 @@
             // Check if we have purchases waiting to sync and update status accordingly
             const pending = Storage.getPendingSync();
             if (pending.length > 0) {
-                updateSyncStatus('pending', `${pending.length} pending`);
+                updateSyncStatus('pending', `Pending`);
             } else {
-                updateSyncStatus('synced', 'All synced');
+                updateSyncStatus('synced', 'Synced');
             }
             
             // Set up automatic syncing every 5 minutes (when online)
