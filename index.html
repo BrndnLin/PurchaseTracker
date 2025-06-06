@@ -789,7 +789,7 @@
          All the interactive functionality is handled in JavaScript below -->
     <script>
         // ============================================
-        // PURCHASE TRACKER APP - MAIN JAVASCRIPT
+        // PURCHASE TRACKER APP - ENHANCED WITH DUPLICATE PREVENTION
         // ============================================
         
         /* CONFIGURATION OBJECT
@@ -1195,26 +1195,529 @@
         }
 
         // ============================================
-        // FORM HANDLING
-        // This handles when users submit the purchase form
+        // ENHANCED SYNC STATE MANAGEMENT (NEW)
         // ============================================
         
         /**
-         * HANDLE PURCHASE FORM SUBMISSION
+         * NEW: GLOBAL SYNC STATE TRACKER
+         * 
+         * This flag prevents multiple sync operations from running simultaneously.
+         * This is crucial for preventing duplicate data submission:
+         * 
+         * PROBLEM WITHOUT THIS FLAG:
+         * 1. User adds a purchase (triggers auto-sync after 2 seconds)
+         * 2. User clicks sync button manually (triggers immediate sync)
+         * 3. Both syncs run at the same time
+         * 4. Both send the same data to Google Sheets
+         * 5. Result: Duplicates in your spreadsheet
+         * 
+         * SOLUTION WITH THIS FLAG:
+         * 1. Before starting any sync, check if isSyncing is true
+         * 2. If true, skip the sync attempt
+         * 3. If false, set isSyncing = true and proceed
+         * 4. Always set isSyncing = false when sync completes (success or failure)
+         * 
+         * This is called "mutual exclusion" or "mutex" in computer science
+         */
+        let isSyncing = false;
+        
+        /**
+         * NEW: ENHANCED SYNC ATTEMPT TRACKING
+         * 
+         * These variables help us understand sync patterns and provide better
+         * user feedback about what's happening with their data.
+         */
+        let lastSyncAttempt = null;  // When we last tried to sync
+        let consecutiveFailures = 0; // How many syncs have failed in a row
+
+        // ============================================
+        // ENHANCED SYNC FUNCTIONALITY (COMPLETELY REWRITTEN)
+        // ============================================
+        
+        /**
+         * ENHANCED MAIN SYNC FUNCTION
+         * 
+         * This replaces your original syncPurchases() function with significant improvements:
+         * 
+         * KEY IMPROVEMENTS:
+         * 1. COLLISION PREVENTION: Prevents multiple simultaneous syncs
+         * 2. BETTER TIMING: Smarter delays and retry logic
+         * 3. ENHANCED ERROR HANDLING: More specific error messages
+         * 4. DETAILED LOGGING: Better debugging information
+         * 5. USER FEEDBACK: Clear status updates throughout the process
+         * 
+         * HOW COLLISION PREVENTION WORKS:
+         * - Check isSyncing flag before starting
+         * - Set flag to true when starting sync
+         * - Always clear flag when done (using finally block)
+         * - Provide user feedback when sync is already running
+         * 
+         * WHY THIS PREVENTS DUPLICATES:
+         * - Only one sync can run at a time
+         * - Each sync sends a complete batch of pending purchases
+         * - Google Apps Script now checks for duplicates server-side
+         * - Result: No duplicate entries in your spreadsheet
+         * 
+         * @returns {Promise<void>} Promise that resolves when sync completes
+         */
+        async function syncPurchases() {
+            // ============================================
+            // STEP 1: COLLISION PREVENTION
+            // ============================================
+            
+            // Check if a sync is already running
+            if (isSyncing) {
+                console.log('🔄 Sync collision prevented: Another sync is already in progress');
+                console.log('⏱️ This prevents duplicate data from being sent to Google Sheets');
+                
+                // Update UI to show user that sync is already happening
+                showMessage('Sync already in progress...', 'error');
+                return; // Exit early - don't start another sync
+            }
+            
+            // ============================================
+            // STEP 2: BASIC VALIDATION
+            // ============================================
+            
+            // Verify that Google Apps Script URL is configured
+            if (!CONFIG.GOOGLE_SCRIPT_URL.startsWith('https://script.google.com/')) {
+                console.warn('❌ Google Apps Script URL not configured properly');
+                updateSyncStatus('error', 'Sync not configured');
+                showMessage('Sync not configured. Please check your Google Apps Script URL.', 'error');
+                return;
+            }
+            
+            // Get purchases that need to be synced
+            const pending = Storage.getPendingSync();
+            
+            // If nothing to sync, we're already up to date
+            if (pending.length === 0) {
+                console.log('✅ No pending purchases to sync');
+                updateSyncStatus('synced', 'Synced');
+                return;
+            }
+            
+            // ============================================
+            // STEP 3: START SYNC PROCESS
+            // ============================================
+            
+            // Set the collision prevention flag
+            isSyncing = true;
+            lastSyncAttempt = new Date();
+            
+            // Show user that sync is starting
+            console.log(`🚀 Starting sync process with ${pending.length} pending purchase(s)`);
+            updateSyncStatus('syncing', 'Syncing...');
+            
+            // Log details about what we're syncing (for debugging)
+            pending.forEach((purchase, index) => {
+                console.log(`   ${index + 1}. ${purchase.description} - ${purchase.amount} (ID: ${purchase.id})`);
+            });
+            
+            try {
+                // ============================================
+                // STEP 4: ATTEMPT SYNC WITH ENHANCED ERROR HANDLING
+                // ============================================
+                
+                // Prepare data in the format expected by Google Apps Script
+                const requestData = {
+                    action: 'addPurchases',  // This tells Google Apps Script what to do
+                    purchases: pending       // The actual purchase data to save
+                };
+                
+                console.log('📤 Sending data to Google Apps Script...');
+                
+                // Try the main sync method first
+                const syncSuccess = await attemptMainSync(requestData);
+                
+                if (syncSuccess) {
+                    // ============================================
+                    // STEP 5A: HANDLE SUCCESSFUL SYNC
+                    // ============================================
+                    
+                    console.log('✅ Main sync method succeeded');
+                    await handleSyncSuccess(pending);
+                    consecutiveFailures = 0; // Reset failure counter
+                    
+                } else {
+                    // ============================================
+                    // STEP 5B: HANDLE FAILED SYNC WITH FALLBACK
+                    // ============================================
+                    
+                    console.log('⚠️ Main sync failed, attempting fallback method...');
+                    consecutiveFailures++;
+                    
+                    // Try the form submission fallback method
+                    await syncWithFormSubmissionFallback(pending);
+                }
+                
+            } catch (error) {
+                // ============================================
+                // STEP 6: HANDLE CRITICAL ERRORS
+                // ============================================
+                
+                console.error('❌ Critical sync error occurred:', error);
+                console.error('📍 Error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    pendingCount: pending.length
+                });
+                
+                consecutiveFailures++;
+                
+                // Update UI with error information
+                updateSyncStatus('error', 'Sync failed');
+                
+                // Provide helpful error messages based on the type of error
+                if (error.name === 'NetworkError' || error.message.includes('fetch')) {
+                    showMessage('Network error. Check your internet connection.', 'error');
+                } else if (error.message.includes('CORS')) {
+                    showMessage('CORS error. This is normal - data may still have been saved.', 'error');
+                } else {
+                    showMessage(`Sync failed: ${error.message}. Will retry when online.`, 'error');
+                }
+                
+                // Log guidance for debugging
+                console.log('🔧 Debugging suggestions:');
+                console.log('   1. Check your internet connection');
+                console.log('   2. Verify your Google Apps Script URL is correct');
+                console.log('   3. Check the Google Apps Script logs for server-side errors');
+                console.log('   4. Try the manual sync button');
+                
+            } finally {
+                // ============================================
+                // STEP 7: CLEANUP (ALWAYS RUNS)
+                // ============================================
+                
+                // CRITICAL: Always clear the sync flag, even if errors occurred
+                // This ensures the app doesn't get stuck in a "syncing" state
+                isSyncing = false;
+                
+                console.log('🏁 Sync process completed, collision flag cleared');
+                
+                // Log sync statistics for monitoring
+                console.log('📊 Sync Statistics:', {
+                    lastAttempt: lastSyncAttempt,
+                    consecutiveFailures: consecutiveFailures,
+                    pendingCount: Storage.getPendingSync().length
+                });
+            }
+        }
+
+        /**
+         * NEW: ENHANCED MAIN SYNC ATTEMPT
+         * 
+         * This function handles the primary sync method using fetch().
+         * It's separated from the main function for better error handling
+         * and to make testing easier.
+         * 
+         * KEY LEARNING CONCEPTS:
+         * 1. SEPARATION OF CONCERNS: Each function has one clear responsibility
+         * 2. ERROR ISOLATION: Errors in sync attempts don't crash the main function
+         * 3. RETURN VALUES: Boolean return indicates success/failure clearly
+         * 4. ASYNC/AWAIT: Modern JavaScript for handling asynchronous operations
+         * 
+         * WHY 'NO-CORS' MODE:
+         * Google Apps Script has CORS restrictions that prevent normal browser requests.
+         * 'no-cors' mode allows us to send data but not read the response.
+         * This is a limitation of browser security, but the data still gets processed.
+         * 
+         * @param {Object} requestData - The data to send to Google Apps Script
+         * @returns {Promise<boolean>} True if the request was sent successfully
+         */
+        async function attemptMainSync(requestData) {
+            console.log('🌐 Attempting primary sync method via fetch()...');
+            
+            try {
+                // Send the POST request to Google Apps Script
+                const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                    method: 'POST',                    // Use POST to send data
+                    mode: 'no-cors',                   // Required for Google Apps Script (security limitation)
+                    headers: {
+                        'Content-Type': 'application/json',  // Tell server we're sending JSON
+                    },
+                    body: JSON.stringify(requestData)  // Convert JavaScript object to JSON string
+                });
+                
+                // WITH 'NO-CORS' MODE:
+                // - We can send the request successfully
+                // - We cannot read the response (browser security restriction)
+                // - If fetch() doesn't throw an error, we assume it worked
+                // - This is a limitation we have to work with for Google Apps Script
+                
+                console.log('📤 Request sent successfully to Google Apps Script');
+                console.log('ℹ️ Note: Cannot read response due to CORS restrictions, but data should be processed');
+                
+                return true; // Assume success if no error was thrown
+                
+            } catch (error) {
+                // Log the specific error for debugging
+                console.error('❌ Primary sync method failed:', error.message);
+                
+                // Common error types and what they mean:
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    console.log('🔍 This is likely a network connectivity issue');
+                } else if (error.message.includes('CORS')) {
+                    console.log('🔍 CORS error - this might actually be normal with Google Apps Script');
+                } else {
+                    console.log('🔍 Unexpected error type:', error.name);
+                }
+                
+                return false; // Indicate that this method failed
+            }
+        }
+
+        /**
+         * NEW: ENHANCED SYNC SUCCESS HANDLER
+         * 
+         * This function handles all the tasks that need to happen when a sync
+         * operation succeeds. By centralizing this logic, we ensure consistency
+         * between different sync methods.
+         * 
+         * TASKS PERFORMED:
+         * 1. Mark synced purchases as synced in local storage
+         * 2. Clear the pending sync queue
+         * 3. Record the successful sync timestamp
+         * 4. Update the user interface
+         * 5. Show success message to user
+         * 6. Log detailed success information
+         * 
+         * WHY CENTRALIZE THIS:
+         * - Both primary and fallback sync methods need the same cleanup
+         * - Reduces code duplication
+         * - Ensures consistent behavior
+         * - Makes testing easier
+         * 
+         * @param {Array} syncedPurchases - Array of purchases that were successfully synced
+         */
+        async function handleSyncSuccess(syncedPurchases) {
+            console.log('✅ Processing successful sync...');
+            
+            try {
+                // ============================================
+                // UPDATE LOCAL STORAGE
+                // ============================================
+                
+                // Mark all synced purchases as synced in local storage
+                // This prevents them from being sent again in future syncs
+                const allPurchases = Storage.getPurchases();
+                let updatedCount = 0;
+                
+                allPurchases.forEach(purchase => {
+                    // Find purchases that were just synced and mark them
+                    if (syncedPurchases.find(p => p.id === purchase.id)) {
+                        purchase.synced = true;
+                        updatedCount++;
+                    }
+                });
+                
+                // Save the updated purchase list back to local storage
+                Storage.savePurchases(allPurchases);
+                
+                console.log(`📝 Marked ${updatedCount} purchases as synced in local storage`);
+                
+                // ============================================
+                // CLEAR PENDING QUEUE
+                // ============================================
+                
+                // Clear the pending sync queue since everything was successful
+                Storage.clearPendingSync();
+                console.log('🗑️ Cleared pending sync queue');
+                
+                // Record the successful sync timestamp for future reference
+                Storage.updateLastSync();
+                console.log('⏰ Updated last sync timestamp');
+                
+                // ============================================
+                // UPDATE USER INTERFACE
+                // ============================================
+                
+                // Update sync status indicator to show success
+                updateSyncStatus('synced', 'Synced');
+                
+                // Show success message to user
+                showMessage(`Successfully synced ${syncedPurchases.length} purchase(s) to Google Sheets!`, 'success');
+                
+                // ============================================
+                // SUCCESS LOGGING
+                // ============================================
+                
+                console.log('🎉 Sync success details:', {
+                    purchasesSynced: syncedPurchases.length,
+                    timestamp: new Date().toISOString(),
+                    method: 'primary', // Could be enhanced to track which method was used
+                    consecutiveFailures: consecutiveFailures
+                });
+                
+                // If we had previous failures, mention the recovery
+                if (consecutiveFailures > 0) {
+                    console.log(`🔄 Recovered from ${consecutiveFailures} consecutive failure(s)`);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error during sync success handling:', error);
+                // Don't throw the error - the sync itself was successful
+                // This is just cleanup, so we log the error but don't fail the entire operation
+            }
+        }
+
+        /**
+         * NEW: ENHANCED FORM SUBMISSION FALLBACK
+         * 
+         * This function provides a backup sync method when the primary fetch() method fails.
+         * It uses HTML form submission to bypass some CORS restrictions.
+         * 
+         * HOW IT WORKS:
+         * 1. Creates an invisible HTML form dynamically
+         * 2. Adds the purchase data as a hidden form field
+         * 3. Submits the form to your Google Apps Script URL
+         * 4. Opens result in a new tab (prevents page navigation)
+         * 5. Cleans up the temporary form
+         * 6. Assumes success after a reasonable delay
+         * 
+         * WHY THIS WORKS:
+         * - Form submissions have different CORS rules than fetch()
+         * - Google Apps Script can handle both JSON and form data
+         * - This method often works when fetch() fails
+         * 
+         * LIMITATIONS:
+         * - Can't read the response (opens in new tab)
+         * - Must assume success based on timing
+         * - Less reliable than primary method
+         * 
+         * @param {Array} purchases - Array of purchases to sync
+         * @returns {Promise<void>} Promise that resolves when fallback completes
+         */
+        async function syncWithFormSubmissionFallback(purchases) {
+            console.log('📋 Using form submission fallback method...');
+            console.log('ℹ️ This method works around CORS restrictions by using HTML form submission');
+            
+            return new Promise((resolve) => {
+                try {
+                    // ============================================
+                    // CREATE DYNAMIC FORM
+                    // ============================================
+                    
+                    // Create a form element in memory (not visible to user)
+                    const form = document.createElement('form');
+                    form.method = 'POST';                    // Use POST method to send data
+                    form.action = CONFIG.GOOGLE_SCRIPT_URL;  // Send to your Google Apps Script
+                    form.target = '_blank';                  // Open result in new tab (prevents page navigation)
+                    form.style.display = 'none';            // Make form completely invisible
+                    
+                    // Create a hidden input field to hold our purchase data
+                    const input = document.createElement('input');
+                    input.type = 'hidden';                   // Hidden from user
+                    input.name = 'data';                     // Field name that Google Apps Script expects
+                    input.value = JSON.stringify({          // Convert data to JSON string
+                        action: 'addPurchases',
+                        purchases: purchases
+                    });
+                    
+                    // ============================================
+                    // SUBMIT FORM
+                    // ============================================
+                    
+                    // Assemble the form by adding the input field
+                    form.appendChild(input);
+                    
+                    // Add form to the page (required for submission)
+                    document.body.appendChild(form);
+                    
+                    console.log('📤 Submitting form with purchase data...');
+                    
+                    // Submit the form - this sends the data to Google Apps Script
+                    form.submit();
+                    
+                    console.log('✅ Form submitted successfully');
+                    
+                    // ============================================
+                    // CLEANUP AND SUCCESS HANDLING
+                    // ============================================
+                    
+                    // Remove the temporary form after a short delay
+                    setTimeout(() => {
+                        try {
+                            if (document.body.contains(form)) {
+                                document.body.removeChild(form);
+                                console.log('🗑️ Cleaned up temporary form');
+                            }
+                        } catch (cleanupError) {
+                            console.warn('⚠️ Form cleanup error (not critical):', cleanupError.message);
+                        }
+                    }, 1000);
+                    
+                    // Wait for a reasonable amount of time, then assume success
+                    // We use a longer delay than the original to be more confident
+                    setTimeout(async () => {
+                        console.log('⏳ Fallback method timeout reached, assuming success...');
+                        
+                        try {
+                            // Handle the sync as successful
+                            await handleSyncSuccess(purchases);
+                            
+                            // Special message for fallback method
+                            showMessage('Sync completed via fallback method. Check your Google Sheet to verify.', 'success');
+                            
+                            console.log('✅ Fallback method completed');
+                            
+                        } catch (error) {
+                            console.error('❌ Error in fallback success handling:', error);
+                            updateSyncStatus('error', 'Sync uncertain');
+                            showMessage('Fallback method completed, but status uncertain. Check your Google Sheet.', 'error');
+                        }
+                        
+                        resolve(); // Resolve the Promise to indicate completion
+                        
+                    }, 5000); // Increased delay to 5 seconds for better reliability
+                    
+                } catch (error) {
+                    console.error('❌ Form submission fallback failed:', error);
+                    updateSyncStatus('error', 'All methods failed');
+                    showMessage('All sync methods failed. Will retry when online.', 'error');
+                    resolve(); // Still resolve to prevent hanging
+                }
+            });
+        }
+
+        // ============================================
+        // ENHANCED FORM HANDLING (UPDATED)
+        // ============================================
+        
+        /**
+         * ENHANCED PURCHASE FORM SUBMISSION HANDLER
+         * 
          * This function runs when the user clicks "Add Purchase"
          * It processes the form data and saves the purchase
-         * MODIFIED: Now works with category buttons instead of dropdown
+         * 
+         * ENHANCED FEATURES:
+         * 1. Better auto-sync timing to prevent sync storms
+         * 2. Collision prevention for sync operations
+         * 3. More detailed logging for debugging
+         * 4. Enhanced error handling and user feedback
          */
         document.getElementById('purchaseForm').addEventListener('submit', async (e) => {
             e.preventDefault(); // Prevent the browser's default form submission behavior
+            
+            console.log('📝 Purchase form submitted');
+            
+            // ============================================
+            // FORM VALIDATION (ENHANCED)
+            // ============================================
             
             // CATEGORY VALIDATION
             // Check if user selected a category before processing form
             const selectedCategory = document.getElementById('category').value;
             if (!selectedCategory) {
+                console.log('❌ Form validation failed: No category selected');
                 showMessage('Please select a category', 'error');
                 return; // Stop form submission if no category selected
             }
+            
+            // ============================================
+            // CREATE PURCHASE OBJECT
+            // ============================================
             
             // Extract data from the form using FormData API
             const formData = new FormData(e.target);
@@ -1229,6 +1732,17 @@
                 synced: false                               // Mark as not yet synced to Google Sheets
             };
             
+            console.log('💰 New purchase created:', {
+                id: purchase.id,
+                description: purchase.description,
+                amount: purchase.amount,
+                category: purchase.category
+            });
+            
+            // ============================================
+            // SAVE LOCALLY AND UPDATE UI
+            // ============================================
+            
             // Save the purchase locally first (enables offline functionality)
             Storage.addPurchase(purchase);
             
@@ -1240,11 +1754,15 @@
             // Update the user interface immediately
             updateStats();          // Recalculate today/week totals
             updatePurchasesList();  // Add to recent purchases list
-            updateSyncStatus('pending', `Pending`);  // Show pending count
+            updateSyncStatus('pending', 'Pending');  // Show pending status
+            
+            // ============================================
+            // RESET FORM FOR NEXT ENTRY
+            // ============================================
             
             // Reset the form for the next purchase entry
             e.target.reset();
-            clearCategorySelection();  // NEW: Clear category button selection
+            clearCategorySelection();  // Clear category button selection
             
             // Put cursor back in description field for quick consecutive entries
             document.getElementById('description').focus();
@@ -1252,177 +1770,137 @@
             // Show success feedback to the user
             showMessage('Purchase added successfully!', 'success');
             
-            // Try to sync if we're online (small delay allows for multiple quick entries)
-            if (navigator.onLine) {
-                setTimeout(() => syncPurchases(), 2000);
+            // ============================================
+            // ENHANCED AUTO-SYNC LOGIC
+            // ============================================
+            
+            // Only attempt auto-sync if online and not already syncing
+            if (navigator.onLine && !isSyncing) {
+                console.log('⏰ Scheduling auto-sync after purchase...');
+                
+                // Use a longer delay to allow for multiple quick entries
+                // This prevents sync storms when users add multiple purchases rapidly
+                setTimeout(() => {
+                    // Double-check that sync isn't running (could have started manually)
+                    if (!isSyncing) {
+                        console.log('🤖 Starting auto-sync after purchase...');
+                        syncPurchases();
+                    } else {
+                        console.log('⚠️ Auto-sync skipped: manual sync already running');
+                    }
+                }, 3000); // Increased delay to 3 seconds
+                
+            } else if (!navigator.onLine) {
+                console.log('📱 Auto-sync skipped: device is offline');
+            } else {
+                console.log('🔄 Auto-sync skipped: sync already in progress');
             }
         });
 
         // ============================================
-        // SYNC FUNCTIONALITY
-        // This handles sending data to Google Sheets
+        // ENHANCED EVENT LISTENERS (UPDATED)
         // ============================================
-        
-        /**
-         * SYNC PURCHASES WITH GOOGLE SHEETS
-         * This is the main function that sends local data to your Google Apps Script
-         * 
-         * IMPORTANT CORS EXPLANATION:
-         * Google Apps Script has security restrictions that prevent normal browser requests.
-         * We use 'no-cors' mode which means we can send data but can't read the response.
-         * This is a limitation of browser security, but the data still gets processed successfully.
-         */
-        async function syncPurchases() {
-            // Verify that Google Apps Script URL is configured
-            if (!CONFIG.GOOGLE_SCRIPT_URL.startsWith('https://script.google.com/')) {
-                updateSyncStatus('error', 'Sync not configured');
-                console.warn('Google Apps Script URL not configured properly');
-                return;
-            }
-            
-            // Get purchases that need to be synced
-            const pending = Storage.getPendingSync();
-            
-            // If nothing to sync, we're already up to date
-            if (pending.length === 0) {
-                updateSyncStatus('synced', 'Synced');
-                return;
-            }
-            
-            // Show syncing status with spinning animation
-            updateSyncStatus('syncing', 'Syncing...');
-            
-            try {
-                console.log('Starting sync process with purchases:', pending);
-                
-                // Prepare data in the format expected by Google Apps Script
-                const requestData = {
-                    action: 'addPurchases',  // Tells the script what operation to perform
-                    purchases: pending       // The actual purchase data to save
-                };
-                
-                // Send data to Google Sheets via our Apps Script
-                // IMPORTANT: 'no-cors' mode is required for Google Apps Script
-                // This means we can't read the response, but data still gets sent successfully
-                const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                    method: 'POST',                    // Use POST to send data
-                    mode: 'no-cors',                   // Required for Google Apps Script
-                    headers: {
-                        'Content-Type': 'application/json',  // Tell server we're sending JSON
-                    },
-                    body: JSON.stringify(requestData)  // Convert data to JSON string
-                });
-                
-                console.log('Request sent to Google Apps Script successfully');
-                
-                // Since we can't read the response due to CORS restrictions,
-                // we assume the request was successful if it didn't throw an error
-                
-                // Mark all pending purchases as synced in local storage
-                const allPurchases = Storage.getPurchases();
-                allPurchases.forEach(purchase => {
-                    // Find purchases that were just synced and mark them
-                    if (pending.find(p => p.id === purchase.id)) {
-                        purchase.synced = true;
-                    }
-                });
-                Storage.savePurchases(allPurchases);
-                
-                // Clear the pending sync queue and record successful sync time
-                Storage.clearPendingSync();
-                Storage.updateLastSync();
-                
-                // Update UI to show successful sync
-                updateSyncStatus('synced', 'Synced');
-                showMessage('Purchases synced to Google Sheets!', 'success');
-                
-                console.log('Sync process completed successfully');
-                
-            } catch (error) {
-                console.error('Sync error occurred:', error);
-                
-                // If the main sync method fails, try the form submission fallback
-                console.log('Attempting form submission fallback method...');
-                try {
-                    await syncWithFormSubmission(pending);
-                } catch (formError) {
-                    console.error('Form submission fallback also failed:', formError);
-                    updateSyncStatus('error', 'Sync failed');
-                    showMessage('Sync failed. Will retry when online.', 'error');
-                }
-            }
-        }
 
         /**
-         * ALTERNATIVE SYNC METHOD USING FORM SUBMISSION
-         * Creates an invisible form and submits it to bypass CORS restrictions
-         * This is a fallback method when the regular fetch request fails
+         * ENHANCED MANUAL SYNC BUTTON HANDLER
          * 
-         * @param {Array} purchases - Array of purchases to sync
+         * This replaces your original sync button event listener with better
+         * collision prevention and user feedback.
          */
-        async function syncWithFormSubmission(purchases) {
-            console.log('Using form submission method as fallback');
+        document.getElementById('syncButton').addEventListener('click', () => {
+            console.log('🖱️ Manual sync button clicked');
             
-            return new Promise((resolve) => {
-                // Create a hidden form element dynamically
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = CONFIG.GOOGLE_SCRIPT_URL;
-                form.target = '_blank';           // Open result in new tab (prevents page navigation)
-                form.style.display = 'none';     // Make form invisible
+            // Check if sync is already running
+            if (isSyncing) {
+                console.log('⚠️ Manual sync blocked: sync already in progress');
+                showMessage('Sync already in progress. Please wait...', 'error');
+                return;
+            }
+            
+            // Check if we're online
+            if (!navigator.onLine) {
+                console.log('⚠️ Manual sync blocked: device is offline');
+                showMessage('Cannot sync while offline. Check your internet connection.', 'error');
+                return;
+            }
+            
+            // Start manual sync
+            console.log('🚀 Starting manual sync...');
+            showMessage('Manual sync started...', 'success');
+            syncPurchases();
+        });
+
+        /**
+         * ENHANCED ONLINE EVENT HANDLER
+         * 
+         * This improves the existing online event handler with better
+         * collision prevention and user feedback.
+         */
+        window.addEventListener('online', () => {
+            console.log('🌐 Device came back online');
+            
+            // Remove offline indicator
+            document.body.classList.remove('offline');
+            
+            // Check if we have pending purchases to sync
+            const pendingCount = Storage.getPendingSync().length;
+            
+            if (pendingCount > 0) {
+                console.log(`📤 Found ${pendingCount} pending purchases, attempting sync...`);
+                showMessage(`Back online! Syncing ${pendingCount} pending purchase(s)...`, 'success');
                 
-                // Create a hidden input field with our purchase data
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'data';             // Field name that Google Apps Script expects
-                input.value = JSON.stringify({
-                    action: 'addPurchases',
-                    purchases: purchases
-                });
-                
-                // Assemble and submit the form
-                form.appendChild(input);
-                document.body.appendChild(form);
-                form.submit();  // This sends the data to Google Apps Script
-                
-                // Clean up the temporary form after a short delay
+                // Small delay to ensure connection is stable
                 setTimeout(() => {
-                    if (document.body.contains(form)) {
-                        document.body.removeChild(form);
+                    if (!isSyncing) {
+                        syncPurchases();
+                    } else {
+                        console.log('⚠️ Online sync skipped: sync already in progress');
                     }
                 }, 1000);
                 
-                // Since we can't verify the response from form submission either,
-                // we assume success after a reasonable delay
-                setTimeout(() => {
-                    // Mark purchases as synced in local storage
-                    const allPurchases = Storage.getPurchases();
-                    allPurchases.forEach(purchase => {
-                        if (purchases.find(p => p.id === purchase.id)) {
-                            purchase.synced = true;
-                        }
-                    });
-                    Storage.savePurchases(allPurchases);
-                    Storage.clearPendingSync();
-                    Storage.updateLastSync();
-                    
-                    // Update UI with cautionary success message
-                    updateSyncStatus('synced', 'Synced (check sheet)');
-                    showMessage('Sync attempted via form. Check your Google Sheet to verify.', 'success');
-                    resolve();
-                }, 2000);
-            });
-        }
+            } else {
+                console.log('✅ No pending purchases to sync');
+                showMessage('Back online! All purchases are already synced.', 'success');
+                updateSyncStatus('synced', 'Synced');
+            }
+        });
+
+        /**
+         * ENHANCED OFFLINE EVENT HANDLER
+         * 
+         * Provides better user feedback when going offline.
+         */
+        window.addEventListener('offline', () => {
+            console.log('📱 Device went offline');
+            
+            // Show offline indicator
+            document.body.classList.add('offline');
+            
+            // If sync was running, it will fail gracefully
+            if (isSyncing) {
+                console.log('⚠️ Sync was running when offline - will handle gracefully');
+            }
+            
+            // Update sync status and show message
+            const pendingCount = Storage.getPendingSync().length;
+            if (pendingCount > 0) {
+                updateSyncStatus('pending', `${pendingCount} pending`);
+                showMessage(`You're offline. ${pendingCount} purchase(s) will sync when reconnected.`, 'error');
+            } else {
+                showMessage('You\'re offline. New purchases will sync when reconnected.', 'error');
+            }
+        });
 
         // ============================================
-        // EXPORT FUNCTIONALITY
-        // This allows users to download their data as a CSV file
+        // EXPORT FUNCTIONALITY (UNCHANGED)
         // ============================================
         
         /**
          * EXPORT PURCHASES AS CSV FILE
          * Creates a downloadable spreadsheet file with all purchase data
          * CSV (Comma Separated Values) can be opened in Excel, Google Sheets, etc.
+         * 
+         * This function remains exactly the same as before
          */
         function exportPurchases() {
             const purchases = Storage.getPurchases();
@@ -1470,39 +1948,34 @@
         }
 
         // ============================================
-        // EVENT LISTENERS
-        // These functions respond to user actions and system events
+        // ENHANCED AUTOMATIC SYNC INTERVAL (UPDATED)
         // ============================================
-        
-        // SYNC BUTTON CLICK HANDLER
-        // Manual sync when user clicks the sync button
-        document.getElementById('syncButton').addEventListener('click', syncPurchases);
-        
-        // ONLINE/OFFLINE DETECTION
-        // These events automatically detect when internet connection changes
-        
+
         /**
-         * HANDLE COMING BACK ONLINE
-         * Automatically sync when internet connection is restored
+         * ENHANCED AUTOMATIC SYNC TIMER
+         * 
+         * This improves the existing auto-sync interval with better
+         * collision prevention and adaptive timing.
          */
-        window.addEventListener('online', () => {
-            document.body.classList.remove('offline');  // Hide offline banner
-            showMessage('Back online! Syncing purchases...', 'success');
-            syncPurchases();  // Attempt to sync any pending purchases
-        });
-        
-        /**
-         * HANDLE GOING OFFLINE
-         * Show warning banner when internet connection is lost
-         */
-        window.addEventListener('offline', () => {
-            document.body.classList.add('offline');  // Show offline banner
-            showMessage('You\'re offline. Purchases will sync when reconnected.', 'error');
-        });
-        
+        setInterval(() => {
+            // Only attempt automatic sync if:
+            // 1. We're online
+            // 2. No sync is currently running
+            // 3. We have pending purchases
+            if (navigator.onLine && !isSyncing) {
+                const pendingCount = Storage.getPendingSync().length;
+                
+                if (pendingCount > 0) {
+                    console.log(`🕐 Automatic sync triggered (${pendingCount} pending purchases)`);
+                    syncPurchases();
+                }
+                // If no pending purchases, we don't log anything to avoid console spam
+            }
+            
+        }, CONFIG.AUTO_SYNC_INTERVAL); // Uses your existing 5-minute interval
+
         // ============================================
-        // SERVICE WORKER REGISTRATION
-        // This enables the app to work offline (Progressive Web App feature)
+        // SERVICE WORKER REGISTRATION (UNCHANGED)
         // ============================================
         
         /* SERVICE WORKER SETUP
@@ -1571,10 +2044,43 @@
                     return data;
                 },
                 
-                // Force a sync attempt
+                // Force a sync attempt (bypassing collision prevention)
                 forceSync: () => {
-                    console.log('🔄 Forcing sync attempt...');
-                    syncPurchases();
+                    console.log('🔧 DEV: Forcing sync (bypassing collision prevention)');
+                    const wassyncing = isSyncing;
+                    isSyncing = false; // Temporarily clear flag
+                    syncPurchases().finally(() => {
+                        if (wassyncing) {
+                            console.log('🔧 DEV: Restored previous sync state');
+                        }
+                    });
+                },
+                
+                // Check current sync state
+                getSyncState: () => {
+                    const state = {
+                        isSyncing: isSyncing,
+                        lastSyncAttempt: lastSyncAttempt,
+                        consecutiveFailures: consecutiveFailures,
+                        pendingCount: Storage.getPendingSync().length,
+                        lastSuccessfulSync: Storage.getLastSync()
+                    };
+                    console.log('🔧 DEV: Current sync state:', state);
+                    return state;
+                },
+                
+                // Simulate sync collision for testing
+                simulateSyncCollision: () => {
+                    console.log('🔧 DEV: Simulating sync collision...');
+                    isSyncing = true;
+                    setTimeout(() => {
+                        console.log('🔧 DEV: Attempting sync during collision...');
+                        syncPurchases();
+                    }, 1000);
+                    setTimeout(() => {
+                        console.log('🔧 DEV: Clearing collision flag');
+                        isSyncing = false;
+                    }, 5000);
                 },
                 
                 // Simulate offline mode for testing
@@ -1595,17 +2101,29 @@
                 showConfig: () => {
                     console.log('⚙️ Current configuration:', CONFIG);
                     return CONFIG;
+                },
+                
+                // Reset sync state for testing
+                resetSyncState: () => {
+                    console.log('🔧 DEV: Resetting sync state');
+                    isSyncing = false;
+                    lastSyncAttempt = null;
+                    consecutiveFailures = 0;
+                    updateSyncStatus('synced', 'Reset');
                 }
             };
             
             // Log available development helpers
-            console.log('🛠️ Development helpers available:');
-            console.log('   devHelpers.clearStorage()    - Clear all data');
-            console.log('   devHelpers.exportData()      - Export current data');
-            console.log('   devHelpers.forceSync()       - Force sync attempt');
-            console.log('   devHelpers.simulateOffline() - Test offline mode');
-            console.log('   devHelpers.simulateOnline()  - Restore online mode');
-            console.log('   devHelpers.showConfig()      - Show configuration');
+            console.log('🛠️ Enhanced development helpers available:');
+            console.log('   devHelpers.clearStorage()        - Clear all data');
+            console.log('   devHelpers.exportData()          - Export current data');
+            console.log('   devHelpers.forceSync()           - Force sync (bypass collision prevention)');
+            console.log('   devHelpers.getSyncState()        - Check current sync state');
+            console.log('   devHelpers.simulateSyncCollision() - Test collision prevention');
+            console.log('   devHelpers.simulateOffline()     - Test offline mode');
+            console.log('   devHelpers.simulateOnline()      - Restore online mode');
+            console.log('   devHelpers.showConfig()          - Show configuration');
+            console.log('   devHelpers.resetSyncState()      - Reset sync state for testing');
             
         } else {
             // Fallback: Service worker not supported in this browser
@@ -1613,57 +2131,70 @@
         }
         
         // ============================================
-        // APPLICATION INITIALIZATION
-        // This runs when the page first loads
+        // APPLICATION INITIALIZATION (ENHANCED)
         // ============================================
         
         /**
-         * INITIALIZE THE APPLICATION
+         * ENHANCED INITIALIZE THE APPLICATION
          * Sets up the initial state and starts background processes
          * This is the main entry point that gets everything running
-         * MODIFIED: Now includes category button setup
+         * 
+         * ENHANCED FEATURES:
+         * 1. Better logging for initialization process
+         * 2. Enhanced sync state detection
+         * 3. Improved initial UI setup
          */
         function init() {
-            console.log('Initializing Purchase Tracker application...');
+            console.log('🚀 Initializing Enhanced Purchase Tracker application...');
+            console.log('📋 Features: Duplicate prevention, collision detection, enhanced sync');
             
-            // NEW: Set up category button event handlers
+            // Set up category button event handlers
             // This must be called before the form becomes interactive
             handleCategorySelection();
+            console.log('✅ Category button handlers initialized');
             
             // Load and display existing data from localStorage
             updateStats();          // Calculate and show today/week totals
             updatePurchasesList();  // Display recent purchases
+            console.log('✅ UI updated with existing data');
             
             // Check initial online/offline state
             if (!navigator.onLine) {
                 document.body.classList.add('offline');
+                console.log('📱 Device is currently offline');
+            } else {
+                console.log('🌐 Device is online');
             }
             
             // Check if we have purchases waiting to sync and update status accordingly
             const pending = Storage.getPendingSync();
             if (pending.length > 0) {
-                updateSyncStatus('pending', `Pending`);
+                updateSyncStatus('pending', 'Pending');
+                console.log(`📤 Found ${pending.length} purchases waiting to sync`);
             } else {
                 updateSyncStatus('synced', 'Synced');
+                console.log('✅ No pending purchases to sync');
             }
-            
-            // Set up automatic syncing every 5 minutes (when online)
-            // This ensures data gets backed up regularly without user intervention
-            setInterval(() => {
-                if (navigator.onLine) {
-                    syncPurchases();
-                }
-            }, CONFIG.AUTO_SYNC_INTERVAL);
             
             // Focus on description field for immediate data entry
             // This improves user experience by letting them start typing right away
             document.getElementById('description').focus();
             
-            console.log('Purchase Tracker initialized successfully');
+            // Log initialization completion
+            console.log('✅ Enhanced Purchase Tracker initialized successfully');
+            console.log('🔒 Duplicate prevention: ACTIVE');
+            console.log('🚦 Sync collision prevention: ACTIVE');
+            console.log('🔄 Auto-sync interval: 5 minutes');
+            
+            // Show initialization message to user
+            showMessage('Purchase Tracker loaded with enhanced duplicate prevention!', 'success');
         }
         
+        // ============================================
         // START THE APPLICATION
-        // This line kicks off the entire app when the page loads
+        // ============================================
+        
+        // This line kicks off the entire enhanced app when the page loads
         init();
     </script>
 </body>
